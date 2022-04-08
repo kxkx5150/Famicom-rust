@@ -78,7 +78,7 @@ impl Cpu {
         self.pc = 0xc000;
     }
     pub fn exec_nmi(&mut self){
-        // self.mem.mapper.ppu.clear_nmi();        
+        self.mem.mapper.ppu.clear_nmi();        
         let opc = Opcode {
             int:256,
             hex: "100".to_string(),
@@ -95,11 +95,11 @@ impl Cpu {
         }
 
         let irq = false;
-        // let nmi = self.mem.mapper.ppu.nmi_interrupt.is_some();
-        let nmi = false;
+        let nmi = self.mem.mapper.ppu.get_nmi_status();
         if (nmi) {
             self.exec_nmi();
         } else if (irq) {
+            
         }
 
         let oldpc = self.pc;

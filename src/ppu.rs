@@ -6,7 +6,9 @@ use std::isize;
 pub struct Pppu {
     PpuX: usize,
     PpuY: usize,
-    IO1: Vec<u8>,
+    regs: Vec<u8>,
+    nmi: bool,
+
     Sprite0Line: bool,
     ScrollRegisterFlag: bool,
     PPUAddressBuffer: usize,
@@ -14,18 +16,23 @@ pub struct Pppu {
     PPUAddressRegisterFlag: bool,
     PPUAddress: usize,
     PPUReadBuffer: usize,
+
     pub screen_mirroring: Mirroring,
     pub vram: Vec<Vec<u8>>,
     pub vrams: Vec<Vec<u8>>,
+    BgLineBuffer: Vec<u8>,
     Palette: Vec<u8>,
-    SPRITE_RAM: Vec<u8>,
+    sprite_ram: Vec<u8>,
+    SPBitArray: Vec<Vec<Vec<u8>>>,
 }
 impl Pppu {
     pub fn new() -> Self {
         Self {
             PpuX: 341,
             PpuY: 0,
-            IO1: (0..8).map(|x| 0).collect(),
+            regs: (0..8).map(|x| 0).collect(),
+            nmi: false,
+
             Sprite0Line: false,
             ScrollRegisterFlag: false,
             PPUAddressBuffer: 0,
@@ -33,17 +40,23 @@ impl Pppu {
             PPUAddressRegisterFlag: false,
             PPUAddress: 0,
             PPUReadBuffer: 0,
+
             screen_mirroring: Mirroring::HORIZONTAL,
             vram: vec![vec![0; 4096]; 16],
             vrams: vec![vec![0; 1024]; 16],
+            BgLineBuffer: (0..264).map(|x| 0).collect(),
             Palette: (0..33).map(|x| 0x0f).collect(),
-            SPRITE_RAM: (0..0x100).map(|x| 0).collect(),
+            sprite_ram: (0..0x100).map(|x| 0).collect(),
+
+            SPBitArray: vec![vec![vec![0; 1]; 1]; 1],
         }
     }
     pub fn init(&mut self, rom: &mut rom::Rom) {
         self.reset();
         self.Palette = [0x0f; 33].to_vec();
-        self.SPRITE_RAM = [0; 0x100].to_vec();
+        self.sprite_ram = [0; 0x100].to_vec();
+        self.BgLineBuffer = [0; 264].to_vec();
+
         self.screen_mirroring = rom.screen_mirroring.clone();
         match self.screen_mirroring {
             Mirroring::VERTICAL => {
@@ -68,6 +81,7 @@ impl Pppu {
         self.PpuX = 341;
         self.PpuY = 0;
         self.Sprite0Line = false;
+        self.nmi = false;
     }
     pub fn set_chr_rom_page(&mut self, mut num: isize, rom: &mut rom::Rom) {
         num <<= 3;
@@ -147,11 +161,11 @@ impl Pppu {
                     self.renderFrame();
                 }
                 240 => {
-                    // self.inVblank();
+                    self.inVblank();
                     continue;
                 }
                 262 => {
-                    // self.postRender();
+                    self.postRender();
                 }
                 _ => {}
             }
@@ -160,154 +174,195 @@ impl Pppu {
     fn renderFrame(&mut self) {
         if self.IsScreenEnable() || self.IsSpriteEnable() {
             println!("");
-            // self.PPUAddress = (self.PPUAddress & 0xfbe0) | (self.PPUAddressBuffer & 0x041f);
+            self.PPUAddress = (self.PPUAddress & 0xfbe0) | (self.PPUAddressBuffer & 0x041f);
 
-            // if (8 <= self.PpuY && self.PpuY < 232) {
-            // self.BuildBGLine();
-            // self.BuildSpriteLine();
-            // let tmpDist = (self.PpuY - 8) << 10;
-            // const fb = self.framebuffer_u32;
-            // for (let p = 0; p < 256; p++, tmpDist += 4) {
-            //     let tmpPal = self.PaletteTable[self.Palette[self.BgLineBuffer[p]]];
-            //     self.setImageData(fb, tmpDist, tmpPal);
-            // }
-            // } else {
-            // for (let p = 0; p < 264; p++) self.BgLineBuffer[p] = 0x10;
-            // self.BuildSpriteLine();
-            // }
+            if (8 <= self.PpuY && self.PpuY < 232) {
+                self.build_bg();
+                self.BuildSpriteLine();
+                let tmpDist = (self.PpuY - 8) << 10;
+                for x in (0..256).step_by(4) {}
+            } else {
+                for x in (0..264).step_by(4) {
+                    self.BgLineBuffer[x] = 0x10;
+                }
+                self.BuildSpriteLine();
+            }
 
-            // if ((self.PPUAddress & 0x7000) === 0x7000) {
-            // self.PPUAddress &= 0x8fff;
-            // if ((self.PPUAddress & 0x03e0) === 0x03a0) self.PPUAddress = (self.PPUAddress ^ 0x0800) & 0xfc1f;
-            // else if ((self.PPUAddress & 0x03e0) === 0x03e0) self.PPUAddress &= 0xfc1f;
-            // else self.PPUAddress += 0x0020;
-            // } else self.PPUAddress += 0x1000;
+            if ((self.PPUAddress & 0x7000) == 0x7000) {
+                self.PPUAddress &= 0x8fff;
+
+                if ((self.PPUAddress & 0x03e0) == 0x03a0) {
+                    self.PPUAddress = (self.PPUAddress ^ 0x0800) & 0xfc1f;
+                } else if ((self.PPUAddress & 0x03e0) == 0x03e0) {
+                    self.PPUAddress &= 0xfc1f;
+                } else {
+                    self.PPUAddress += 0x0020;
+                }
+            } else {
+                self.PPUAddress += 0x1000;
+            }
         } else if (8 <= self.PpuY && self.PpuY < 232) {
             let tmpDist = (self.PpuY - 8) << 10;
             let tmpPal = PALLETE_TABLE[self.Palette[0x10] as usize];
-
-            for x in (1..10).step_by(4) {}
+            for x in (0..256).step_by(4) {}
         }
     }
-    //   inVblank() {
-    //     self.nes.DrawFlag = true;
-    //     if (self.nes.speedCount <= 1) self.ctx.putImageData(self.ImageData, 0, 0);
-    //     self.ScrollRegisterFlag = false;
-    //     self.IO1[0x02] &= 0x1f;
-    //     self.IO1[0x02] |= 0x80;
-    //     if ((self.IO1[0x00] & 0x80) === 0x80) self.nes.irq.nmiWanted = true;
-    //   }
-    //   postRender() {
-    //     self.PpuY = 0;
-    //     if (self.IsScreenEnable || self.IsSpriteEnable) {
-    //       self.PPUAddress = self.PPUAddressBuffer;
-    //     }
-    //     self.IO1[0x02] &= 0x7f;
-    //   }
+    fn inVblank(&mut self) {
+        println!("");
+        // if (self.nes.speedCount <= 1) {
+        //     // self.ctx.putImageData(self.ImageData, 0, 0);
+        // }
+        self.ScrollRegisterFlag = false;
+        self.regs[0x02] &= 0x1f;
+        self.regs[0x02] |= 0x80;
+        if ((self.regs[0x00] & 0x80) == 0x80) {
+            self.nmi = true;
+        }
+    }
+    pub fn clear_nmi(&mut self) {
+        self.nmi = false;
+    }
+    pub fn get_nmi_status(&mut self) -> bool {
+        self.nmi
+    }
+    fn postRender(&mut self) {
+        self.PpuY = 0;
+        if (self.IsScreenEnable() || self.IsSpriteEnable()) {
+            self.PPUAddress = self.PPUAddressBuffer;
+        }
+        self.regs[0x02] &= 0x7f;
+    }
     //   setImageData(fb, dist, plt) {
     //     fb[dist / 4] = (255 << 24) | (plt[2] << 16) | (plt[1] << 8) | plt[0];
     //   }
-    //   BuildBGLine() {
-    //     if ((self.IO1[0x01] & 0x08) !== 0x08) {
-    //       for (let p = 0; p < 264; p++) self.BgLineBuffer[p] = 0x10;
-    //       return;
-    //     }
+    fn build_bg(&mut self) {
+        if ((self.regs[0x01] & 0x08) != 0x08) {
+            for x in 0..264 {
+                self.BgLineBuffer[x] = 0x10;
+            }
+            return;
+        }
 
-    //     self.BuildBGLine_SUB();
-    //     if ((self.IO1[0x01] & 0x02) !== 0x02) {
-    //       for (let p = 0; p < 8; p++) self.BgLineBuffer[p] = 0x10;
-    //     }
-    //   }
-    //   BuildBGLine_SUB() {
-    //     let tmpvram = self.vram;
-    //     let nameAddr = 0x2000 | (self.PPUAddress & 0x0fff);
-    //     let tableAddr = ((self.PPUAddress & 0x7000) >> 12) | ((self.IO1[0x00] & 0x10) << 8);
-    //     let nameAddrHigh = nameAddr >> 10;
-    //     let nameAddrLow = nameAddr & 0x03ff;
-    //     let tmpvramHigh = tmpvram[nameAddrHigh];
-    //     let s = self.HScrollTmp;
-    //     let q = 0;
+        self.build_bg_line();
 
-    //     for (let p = 0; p < 33; p++) {
-    //       let ptnDist = (tmpvramHigh[nameAddrLow] << 4) | tableAddr;
-    //       let tmpSrcV = tmpvram[ptnDist >> 10];
-    //       ptnDist &= 0x03ff;
-    //       let attr =
-    //         ((tmpvramHigh[((nameAddrLow & 0x0380) >> 4) | (((nameAddrLow & 0x001c) >> 2) + 0x03c0)] << 2) >>
-    //           (((nameAddrLow & 0x0040) >> 4) | (nameAddrLow & 0x0002))) &
-    //         0x0c;
-    //       let ptn = self.SPBitArray[tmpSrcV[ptnDist]][tmpSrcV[ptnDist + 8]];
+        if ((self.regs[0x01] & 0x02) != 0x02) {
+            for x in 0..8 {
+                self.BgLineBuffer[x] = 0x10;
+            }
+        }
+    }
+    fn build_bg_line(&mut self) {
+        let nameAddr = 0x2000 | (self.PPUAddress & 0x0fff);
+        let lval = (self.PPUAddress & 0x7000) >> 12;
+        let rval = ((self.regs[0x00] & 0x10) as usize) << 8;
 
-    //       for (; s < 8; s++, q++) self.BgLineBuffer[q] = self.PaletteArray[ptn[s] | attr];
-    //       s = 0;
+        let mut nameAddrHigh = nameAddr >> 10;
+        let mut nameAddrLow = nameAddr & 0x03ff;
+        let s = self.HScrollTmp;
 
-    //       if ((nameAddrLow & 0x001f) === 0x001f) {
-    //         nameAddrLow &= 0xffe0;
-    //         tmpvramHigh = tmpvram[(nameAddrHigh ^= 0x01)];
-    //       } else nameAddrLow++;
-    //     }
-    //   }
-    //   get isBigSize(){
-    //     return (self.IO1[0x00] & 0x20) === 0x20 ? 16 : 8;
-    //   }
-    //   BuildSpriteLine() {
-    //     let SpriteClipping = (self.IO1[0x01] & 0x04) === 0x04 ? 0 : 8;
+        for p in 0..33 {
+            let val = (self.vram[nameAddrHigh][nameAddrLow] as usize) << 4;
+            let ptnDist = val | lval | rval;
+            let idx = ptnDist >> 10;
+            let sptdst = ptnDist & 0x03ff;
 
-    //     if ((self.IO1[0x01] & 0x10) === 0x10) {
-    //       let tmpSpLine = self.SpriteLineBuffer;tmpSpLine.fill(256)
-    //       let tmpSpRAM = self.SPRITE_RAM;
-    //       let spptableaddr = (self.IO1[0x00] & 0x08) << 9;
-    //       let lineY = self.PpuY;
-    //       let count = 0;
+            let attr = ((self.vram[nameAddrHigh]
+                [((nameAddrLow & 0x0380) >> 4) | (((nameAddrLow & 0x001c) >> 2) + 0x03c0)]
+                << 2)
+                >> (((nameAddrLow & 0x0040) >> 4) | (nameAddrLow & 0x0002)))
+                & 0x0c;
 
-    //       for (let i = 0; i <= 252; i += 4) {
-    //         let isy = tmpSpRAM[i] + 1;
-    //         if (isy > lineY || isy + self.isBigSize <= lineY) continue;
-    //         if (i === 0) self.Sprite0Line = true;
-    //         if (++count === 9) break;
+            let sidx = self.vram[idx][sptdst];
+            let sidx2 = self.vram[idx][sptdst + 8];
+            let ptn = self.SPBitArray[sidx as usize][sidx2 as usize].clone();
+            let pletary = vec![
+                0x10, 0x01, 0x02, 0x03, 0x10, 0x05, 0x06, 0x07, 0x10, 0x09, 0x0a, 0x0b, 0x10, 0x0d,
+                0x0e, 0x0f,
+            ];
 
-    //         let attr = tmpSpRAM[i + 2];
-    //         let attribute = ((attr & 0x03) << 2) | 0x10;
-    //         let bgsp = (attr & 0x20) === 0x00;
+            let mut q = 0;
+            for s in s..8 {
+                q += 1;
+                let idx = ptn[s] | attr;
+                self.BgLineBuffer[q] = pletary[idx as usize];
+            }
 
-    //         let x = tmpSpRAM[i + 3];
-    //         let ex = x + 8;
-    //         if (ex > 256) ex = 256;
-    //         let iy = (attr & 0x80) === 0x80 ? self.isBigSize - 1 - (lineY - isy) : lineY - isy;
-    //         let tileNum =
-    //           ((iy & 0x08) << 1) +
-    //           (iy & 0x07) +
-    //           (self.isBigSize === 8
-    //             ? (tmpSpRAM[i + 1] << 4) + spptableaddr
-    //             : ((tmpSpRAM[i + 1] & 0xfe) << 4) + ((tmpSpRAM[i + 1] & 0x01) << 12));
-    //         let tmpHigh = self.vram[tileNum >> 10];
-    //         let tmpLow = tileNum & 0x03ff;
-    //         if ((attr & 0x40) === 0x00) {
-    //           let is = 0;
-    //           let ia = 1;
-    //         } else {
-    //           let is = 7;
-    //           let ia = -1;
-    //         }
+            if ((nameAddrLow & 0x001f) == 0x001f) {
+                nameAddrLow &= 0xffe0;
+                nameAddrHigh ^= 0x01;
+                let idx = nameAddrHigh;
+                self.vram[nameAddrHigh] = self.vram[idx].clone();
+            } else {
+                nameAddrLow += 1;
+            }
+        }
+    }
+    fn BuildSpriteLine(&mut self) {
+        //     let SpriteClipping = (self.regs[0x01] & 0x04) === 0x04 ? 0 : 8;
 
-    //         let ptn = self.SPBitArray[tmpHigh[tmpLow]][tmpHigh[tmpLow + 8]];
-    //         for (; x < ex; x++, is += ia) {
-    //           let tmpPtn = ptn[is];
-    //           if (tmpPtn !== 0x00 && tmpSpLine[x] === 256) {
-    //             tmpSpLine[x] = i;
-    //             if (x >= SpriteClipping && (bgsp || self.BgLineBuffer[x] === 0x10))
-    //             self.BgLineBuffer[x] = tmpPtn | attribute;
-    //           }
-    //         }
-    //       }
+        //     if ((self.regs[0x01] & 0x10) === 0x10) {
+        //       let tmpSpLine = self.SpriteLineBuffer;tmpSpLine.fill(256)
+        //       let tmpSpRAM = self.sprite_ram;
+        //       let spptableaddr = (self.regs[0x00] & 0x08) << 9;
+        //       let lineY = self.PpuY;
+        //       let count = 0;
 
-    //       if (count >= 8) self.IO1[0x02] |= 0x20;
-    //       else self.IO1[0x02] &= 0xdf;
-    //     }
-    //   }
+        //       for (let i = 0; i <= 252; i += 4) {
+        //         let isy = tmpSpRAM[i] + 1;
+        //         if (isy > lineY || isy + self.isBigSize <= lineY) continue;
+        //         if (i === 0) self.Sprite0Line = true;
+        //         if (++count === 9) break;
+
+        //         let attr = tmpSpRAM[i + 2];
+        //         let attribute = ((attr & 0x03) << 2) | 0x10;
+        //         let bgsp = (attr & 0x20) === 0x00;
+
+        //         let x = tmpSpRAM[i + 3];
+        //         let ex = x + 8;
+        //         if (ex > 256) ex = 256;
+        //         let iy = (attr & 0x80) === 0x80 ? self.isBigSize - 1 - (lineY - isy) : lineY - isy;
+        //         let tileNum =
+        //           ((iy & 0x08) << 1) +
+        //           (iy & 0x07) +
+        //           (self.isBigSize === 8
+        //             ? (tmpSpRAM[i + 1] << 4) + spptableaddr
+        //             : ((tmpSpRAM[i + 1] & 0xfe) << 4) + ((tmpSpRAM[i + 1] & 0x01) << 12));
+        //         let tmpHigh = self.vram[tileNum >> 10];
+        //         let tmpLow = tileNum & 0x03ff;
+        //         if ((attr & 0x40) === 0x00) {
+        //           let is = 0;
+        //           let ia = 1;
+        //         } else {
+        //           let is = 7;
+        //           let ia = -1;
+        //         }
+
+        //         let ptn = self.SPBitArray[tmpHigh[tmpLow]][tmpHigh[tmpLow + 8]];
+        //         for (; x < ex; x++, is += ia) {
+        //           let tmpPtn = ptn[is];
+        //           if (tmpPtn !== 0x00 && tmpSpLine[x] === 256) {
+        //             tmpSpLine[x] = i;
+        //             if (x >= SpriteClipping && (bgsp || self.BgLineBuffer[x] === 0x10))
+        //             self.BgLineBuffer[x] = tmpPtn | attribute;
+        //           }
+        //         }
+        //       }
+
+        //       if (count >= 8) self.regs[0x02] |= 0x20;
+        //       else self.regs[0x02] &= 0xdf;
+        //     }
+    }
+    fn isBigSize(&mut self) -> usize {
+        let val = (if (self.regs[0x00] & 0x20) == 0x20 {
+            16
+        } else {
+            8
+        });
+        return 8;
+    }
 
     pub fn WriteScrollRegister(&mut self, value: u8) {
-        self.IO1[0x05] = value;
+        self.regs[0x05] = value;
 
         if (self.ScrollRegisterFlag) {
             self.PPUAddressBuffer = (self.PPUAddressBuffer & 0x8c1f)
@@ -321,14 +376,14 @@ impl Pppu {
         self.ScrollRegisterFlag = !self.ScrollRegisterFlag;
     }
     pub fn WritePPUControlRegister0(&mut self, value: u8) {
-        self.IO1[0x00] = value;
+        self.regs[0x00] = value;
         self.PPUAddressBuffer = (self.PPUAddressBuffer & 0xf3ff) | ((value as usize & 0x03) << 10);
     }
     pub fn WritePPUControlRegister1(&mut self, value: u8) {
-        self.IO1[0x01] = value;
+        self.regs[0x01] = value;
     }
     pub fn WritePPUAddressRegister(&mut self, value: u8) {
-        self.IO1[0x06] = value;
+        self.regs[0x06] = value;
         if (self.PPUAddressRegisterFlag) {
             self.PPUAddressBuffer = (self.PPUAddressBuffer & 0xff00) | value as usize;
             self.PPUAddress = self.PPUAddressBuffer;
@@ -340,8 +395,8 @@ impl Pppu {
     }
 
     pub fn ReadPPUStatus(&mut self) -> u8 {
-        let result = self.IO1[0x02];
-        self.IO1[0x02] &= 0x1f;
+        let result = self.regs[0x02];
+        self.regs[0x02] &= 0x1f;
         self.ScrollRegisterFlag = false;
         self.PPUAddressRegisterFlag = false;
         return result;
@@ -349,10 +404,9 @@ impl Pppu {
     pub fn ReadPPUData(&mut self) -> u8 {
         let tmp = self.PPUReadBuffer;
         let addr = self.PPUAddress & 0x3fff;
-        let vrm = self.vram[(addr >> 10) as usize].clone();
-        self.PPUReadBuffer = vrm[addr & 0x03ff] as usize;
+        self.PPUReadBuffer = self.vram[(addr >> 10) as usize][addr & 0x03ff] as usize;
 
-        let flg = (if (self.IO1[0x00] & 0x04) == 0x04 {
+        let flg = (if (self.regs[0x00] & 0x04) == 0x04 {
             32
         } else {
             1
@@ -361,11 +415,11 @@ impl Pppu {
         return tmp as u8;
     }
     pub fn WritePPUData(&mut self, value: u8) {
-        self.IO1[0x07] = value;
+        self.regs[0x07] = value;
         self.vram[self.PPUAddress >> 10][self.PPUAddress & 0x03ff] = value;
 
         if (self.PPUAddress < 0x3000) {
-            let val = if (self.IO1[0x00] & 0x04) == 0x04 {
+            let val = if (self.regs[0x00] & 0x04) == 0x04 {
                 32
             } else {
                 1
@@ -379,7 +433,7 @@ impl Pppu {
             self.vram[(self.PPUAddress - 0x1000) >> 10][(self.PPUAddress - 0x1000) & 0x03ff] =
                 value;
 
-            let val = if (self.IO1[0x00] & 0x04) == 0x04 {
+            let val = if (self.regs[0x00] & 0x04) == 0x04 {
                 32
             } else {
                 1
@@ -398,7 +452,7 @@ impl Pppu {
         } else {
             self.Palette[pln] = value & 0x3f;
         }
-        let val = if (self.IO1[0x00] & 0x04) == 0x04 {
+        let val = if (self.regs[0x00] & 0x04) == 0x04 {
             32
         } else {
             1
@@ -406,17 +460,17 @@ impl Pppu {
         self.PPUAddress = (self.PPUAddress + val) & 0xffff;
     }
     pub fn WriteSpriteData(&mut self, value: u8) {
-        let idx = self.IO1[0x03];
-        self.SPRITE_RAM[idx as usize] = value;
-        self.IO1[0x03] = (self.IO1[0x03] + 1) & 0xff;
+        let idx = self.regs[0x03];
+        self.sprite_ram[idx as usize] = value;
+        self.regs[0x03] = (self.regs[0x03] + 1) & 0xff;
     }
     pub fn WriteSpriteAddressRegister(&mut self, value: u8) {
-        self.IO1[0x03] = value;
+        self.regs[0x03] = value;
     }
     fn IsScreenEnable(&mut self) -> bool {
-        return (self.IO1[0x01] & 0x08) == 0x08;
+        return (self.regs[0x01] & 0x08) == 0x08;
     }
     fn IsSpriteEnable(&mut self) -> bool {
-        return (self.IO1[0x01] & 0x10) == 0x10;
+        return (self.regs[0x01] & 0x10) == 0x10;
     }
 }
