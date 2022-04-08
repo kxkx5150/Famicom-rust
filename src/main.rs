@@ -54,13 +54,13 @@ fn create_window() -> (EventPump, Canvas<Window>, TextureCreator<WindowContext>)
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("", (256.0 * 2.0) as u32, (240.0 * 2.0) as u32)
+        .window("", (256.0 * 1.0) as u32, (240.0 * 1.0) as u32)
         .position_centered()
         .build()
         .unwrap();
     let mut canvas = window.into_canvas().present_vsync().build().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
-    canvas.set_scale(2.0, 2.0).unwrap();
+    canvas.set_scale(1.0, 1.0).unwrap();
     let creator = canvas.texture_creator();
     (event_pump, canvas, creator)
 }

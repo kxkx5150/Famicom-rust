@@ -10,7 +10,8 @@ pub struct Pppu {
     regs: Vec<u8>,
     nmi: bool,
     pub imgdata: Vec<u8>,
-    
+    imgidx: usize,
+
     Sprite0Line: bool,
     ScrollRegisterFlag: bool,
     PPUAddressBuffer: usize,
@@ -35,6 +36,7 @@ impl Pppu {
             regs: (0..8).map(|x| 0).collect(),
             nmi: false,
             imgdata: vec![0; 256 * 2 * 240 * 3],
+            imgidx: 0,
 
             Sprite0Line: false,
             ScrollRegisterFlag: false,
@@ -195,7 +197,6 @@ impl Pppu {
     }
     fn renderFrame(&mut self) {
         if self.IsScreenEnable() || self.IsSpriteEnable() {
-            println!("");
             self.PPUAddress = (self.PPUAddress & 0xfbe0) | (self.PPUAddressBuffer & 0x041f);
 
             if (8 <= self.PpuY && self.PpuY < 232) {
@@ -205,7 +206,7 @@ impl Pppu {
                 for p in (0..256).step_by(3) {
                     let idx = self.Palette[self.BgLineBuffer[p] as usize];
                     let tmpPal = PALLETE_TABLE[idx as usize];
-                    // self.setImageData(tmpDist, tmpPal);
+                    self.setImageData(tmpDist, tmpPal);
                     tmpDist+=3;
                 }
             } else {
@@ -252,6 +253,7 @@ impl Pppu {
         self.nmi
     }
     fn postRender(&mut self) {
+        self.imgidx=0;
         self.PpuY = 0;
         if (self.IsScreenEnable() || self.IsSpriteEnable()) {
             self.PPUAddress = self.PPUAddressBuffer;
@@ -259,9 +261,10 @@ impl Pppu {
         self.regs[0x02] &= 0x7f;
     }
     fn setImageData(&mut self, dist: usize, plt: (u8, u8, u8)) {
-        self.imgdata[dist] = plt.0;
-        self.imgdata[dist+1] = plt.1;
-        self.imgdata[dist+2] = plt.2;
+        self.imgdata[self.imgidx] = plt.0;
+        self.imgdata[self.imgidx+1] = plt.1;
+        self.imgdata[self.imgidx+2] = plt.2;
+        self.imgidx+=3;
     }
     fn build_bg(&mut self) {
         if ((self.regs[0x01] & 0x08) != 0x08) {
