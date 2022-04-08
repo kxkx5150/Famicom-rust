@@ -73,16 +73,16 @@ impl Nes {
             self.cpu.mem.mapper.ppu.PpuRun(cycles as usize);
 
             if !test {
-                // self.cpu.mem.mapper.ppu.tick((cycles * 3) as u8);
-
-                // if !nmi_before && nmi_after {
-                //     self.cpu.mem.mapper.render();
-                //     texture
-                //         .update(None, &self.cpu.mem.mapper.frame.data, 256 * 2 * 3)
-                //         .unwrap();
-                //     canvas.copy(&texture, None, None).unwrap();
-                //     canvas.present();
-                // }
+                let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
+                if nmi {
+                    // println!("");
+                    // self.cpu.mem.mapper.render();
+                    texture
+                        .update(None, &self.cpu.mem.mapper.ppu.imgdata, 256 * 1 * 3)
+                        .unwrap();
+                    canvas.copy(&texture, None, None).unwrap();
+                    canvas.present();
+                }
             }
             for event in event_pump.poll_iter() {
                 match event {

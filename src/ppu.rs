@@ -9,7 +9,8 @@ pub struct Pppu {
     PpuY: usize,
     regs: Vec<u8>,
     nmi: bool,
-
+    pub imgdata: Vec<u8>,
+    
     Sprite0Line: bool,
     ScrollRegisterFlag: bool,
     PPUAddressBuffer: usize,
@@ -33,6 +34,7 @@ impl Pppu {
             PpuY: 0,
             regs: (0..8).map(|x| 0).collect(),
             nmi: false,
+            imgdata: vec![0; 256 * 2 * 240 * 3],
 
             Sprite0Line: false,
             ScrollRegisterFlag: false,
@@ -85,7 +87,7 @@ impl Pppu {
         self.nmi = false;
         self.clear_arryas();
     }
-    pub fn clear_arryas(&mut self){
+    pub fn clear_arryas(&mut self) {
         // self.regs = (0..8).map(|x| 0).collect();
         // self.vram = vec![vec![0; 4096]; 16];
         // self.vrams = vec![vec![0; 1024]; 16];
@@ -96,7 +98,9 @@ impl Pppu {
         for i in 0..256 {
             for j in 0..256 {
                 for k in 0..8 {
-                    let mut val = ((((i << k) & 0x80)as usize >> 7) | (((j << k) & 0x80) as usize >> 6)) as u8;
+                    let mut val = ((((i << k) & 0x80) as usize >> 7)
+                        | (((j << k) & 0x80) as usize >> 6))
+                        as u8;
                     self.SPBitArray[i][j][k] = val;
                 }
             }
@@ -105,7 +109,6 @@ impl Pppu {
     pub fn set_chr_rom_page(&mut self, mut num: isize, rom: &mut rom::Rom) {
         num <<= 3;
         for i in 0..8 {
-            println!("{}", i);
             self.set_chr_rom_page1k(i, num + i, rom);
         }
     }
@@ -198,10 +201,15 @@ impl Pppu {
             if (8 <= self.PpuY && self.PpuY < 232) {
                 self.build_bg();
                 self.BuildSpriteLine();
-                let tmpDist = (self.PpuY - 8) << 10;
-                for x in (0..256).step_by(4) {}
+                let mut tmpDist = (self.PpuY - 8) << 10;
+                for p in (0..256).step_by(3) {
+                    let idx = self.Palette[self.BgLineBuffer[p] as usize];
+                    let tmpPal = PALLETE_TABLE[idx as usize];
+                    // self.setImageData(tmpDist, tmpPal);
+                    tmpDist+=3;
+                }
             } else {
-                for x in (0..264).step_by(4) {
+                for x in (0..264).step_by(3) {
                     self.BgLineBuffer[x] = 0x10;
                 }
                 self.BuildSpriteLine();
@@ -221,15 +229,15 @@ impl Pppu {
                 self.PPUAddress += 0x1000;
             }
         } else if (8 <= self.PpuY && self.PpuY < 232) {
-            let tmpDist = (self.PpuY - 8) << 10;
+            let mut tmpDist = (self.PpuY - 8) << 10;
             let tmpPal = PALLETE_TABLE[self.Palette[0x10] as usize];
-            for x in (0..256).step_by(4) {}
+            for x in (0..256).step_by(3) {
+                self.setImageData(tmpDist, tmpPal);
+                tmpDist+=3;
+            }
         }
     }
     fn inVblank(&mut self) {
-        // if (self.nes.speedCount <= 1) {
-        //     // self.ctx.putImageData(self.ImageData, 0, 0);
-        // }
         self.ScrollRegisterFlag = false;
         self.regs[0x02] &= 0x1f;
         self.regs[0x02] |= 0x80;
@@ -250,9 +258,11 @@ impl Pppu {
         }
         self.regs[0x02] &= 0x7f;
     }
-    //   setImageData(fb, dist, plt) {
-    //     fb[dist / 4] = (255 << 24) | (plt[2] << 16) | (plt[1] << 8) | plt[0];
-    //   }
+    fn setImageData(&mut self, dist: usize, plt: (u8, u8, u8)) {
+        self.imgdata[dist] = plt.0;
+        self.imgdata[dist+1] = plt.1;
+        self.imgdata[dist+2] = plt.2;
+    }
     fn build_bg(&mut self) {
         if ((self.regs[0x01] & 0x08) != 0x08) {
             for x in 0..264 {
