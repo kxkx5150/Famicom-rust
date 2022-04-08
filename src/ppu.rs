@@ -1,6 +1,7 @@
 use crate::palette::PALLETE_TABLE;
 use crate::rom;
 use rom::Mirroring;
+use std::borrow::BorrowMut;
 use std::isize;
 
 pub struct Pppu {
@@ -40,15 +41,15 @@ impl Pppu {
             PPUAddressRegisterFlag: false,
             PPUAddress: 0,
             PPUReadBuffer: 0,
-
             screen_mirroring: Mirroring::HORIZONTAL,
+
             vram: vec![vec![0; 4096]; 16],
             vrams: vec![vec![0; 1024]; 16],
             BgLineBuffer: (0..264).map(|x| 0).collect(),
             Palette: (0..33).map(|x| 0x0f).collect(),
             sprite_ram: (0..0x100).map(|x| 0).collect(),
 
-            SPBitArray: vec![vec![vec![0; 1]; 1]; 1],
+            SPBitArray: vec![vec![vec![0; 8]; 256]; 256],
         }
     }
     pub fn init(&mut self, rom: &mut rom::Rom) {
@@ -82,6 +83,24 @@ impl Pppu {
         self.PpuY = 0;
         self.Sprite0Line = false;
         self.nmi = false;
+        self.clear_arryas();
+    }
+    pub fn clear_arryas(&mut self){
+        // self.regs = (0..8).map(|x| 0).collect();
+        // self.vram = vec![vec![0; 4096]; 16];
+        // self.vrams = vec![vec![0; 1024]; 16];
+        // self.BgLineBuffer = (0..264).map(|x| 0).collect();
+        // self.Palette = (0..33).map(|x| 0x0f).collect();
+        // self.sprite_ram =  (0..0x100).map(|x| 0).collect();
+
+        for i in 0..256 {
+            for j in 0..256 {
+                for k in 0..8 {
+                    let mut val = ((((i << k) & 0x80)as usize >> 7) | (((j << k) & 0x80) as usize >> 6)) as u8;
+                    self.SPBitArray[i][j][k] = val;
+                }
+            }
+        }
     }
     pub fn set_chr_rom_page(&mut self, mut num: isize, rom: &mut rom::Rom) {
         num <<= 3;
@@ -208,7 +227,6 @@ impl Pppu {
         }
     }
     fn inVblank(&mut self) {
-        println!("");
         // if (self.nes.speedCount <= 1) {
         //     // self.ctx.putImageData(self.ImageData, 0, 0);
         // }
