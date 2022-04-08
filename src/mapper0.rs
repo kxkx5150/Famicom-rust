@@ -1,26 +1,18 @@
 use crate::base;
-use crate::ppu;
-use crate::render;
 use crate::rom;
-use render::frame::Frame;
-use render::palette;
-use render::render;
+use crate::ppu;
 
 pub struct Mapper0 {
     pub rom: rom::Rom,
-    pub ppu: ppu::NesPPU,
-    pub frame: Frame,
+    pub ppu: ppu::Pppu,
 }
 impl base::MapperBase for base::Base {}
 impl base::MapperBase for Mapper0 {}
 impl Mapper0 {
-    pub fn new(rom: rom::Rom, ppu: ppu::NesPPU) -> Self {
-        let frame = Frame::new();
-
+    pub fn new(rom: rom::Rom, ppu: ppu::Pppu) -> Self {
         Self {
             rom: rom,
             ppu: ppu,
-            frame: frame,
         }
     }
 
@@ -29,12 +21,14 @@ impl Mapper0 {
         self.rom.set_rom(buf);
         self.rom.set_prgrom_page(0, 0);
         self.rom.set_prgrom_page(1, self.rom.prg_rom_page_count - 1);
+        self.ppu.set_chr_rom_page(0, &mut self.rom);
     }
     pub fn init(&mut self) {
         println!("mapper init");
         self.rom.init();
+        self.ppu.init(&mut self.rom);
     }
     pub fn render(&mut self) {
-        render(&self.ppu, &mut self.frame);
+
     }
 }

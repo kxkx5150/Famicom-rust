@@ -78,7 +78,7 @@ impl Cpu {
         self.pc = 0xc000;
     }
     pub fn exec_nmi(&mut self){
-        self.mem.mapper.ppu.clear_nmi();        
+        // self.mem.mapper.ppu.clear_nmi();        
         let opc = Opcode {
             int:256,
             hex: "100".to_string(),
@@ -95,7 +95,8 @@ impl Cpu {
         }
 
         let irq = false;
-        let nmi = self.mem.mapper.ppu.nmi_interrupt.is_some();
+        // let nmi = self.mem.mapper.ppu.nmi_interrupt.is_some();
+        let nmi = false;
         if (nmi) {
             self.exec_nmi();
         } else if (irq) {
@@ -113,6 +114,9 @@ impl Cpu {
         let adrm = self.get_addr(admstr.as_str());
 
         if test {
+            self.show_test_state(pc, &op, &admstr);
+        }
+        if false{
             self.show_state(pc, &op, &admstr);
         }
 
@@ -123,37 +127,48 @@ impl Cpu {
         self.cpuclock = 0;
         cpucycle
     }
-    fn show_state(&mut self, pc: u16, op: &String, admstr: &String) {
+    fn show_state(&mut self, pc: u16, op: &String, admstr: &String){
+        let p = self.getp(false);
+        println!("");
+        println!("pc         : {:#04X}", pc);
+        println!("opcode     : {}", op);
+        println!("adrmode    : {}", admstr);
+        println!(
+                 "regs       : A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
+            self.a, self.x, self.y, p, self.sp
+        );
+    }
+    fn show_test_state(&mut self, pc: u16, op: &String, admstr: &String) {
         let p = self.getp(false);
         let teststr = format!("{:#04X}", pc);
+        let teststr = format!("CYC:{}", self.totalcycle);
         let teststr = format!(
             "A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
             self.a, self.x, self.y, p, self.sp
         );
-        // let teststr = format!("CYC:{}", self.totalcycle);
 
-        // let okstr = nestest::NESTEST_ADDR[self.steps as usize].to_string();
-        // let okstr = nestest::NESTEST_REGS[self.steps as usize].to_string();
-        // let okstr = nestest::NESTEST_CYCLES[self.steps as usize].to_string();
+        let okstr = nestest::NESTEST_ADDR[self.steps as usize].to_string();
+        let okstr = nestest::NESTEST_CYCLES[self.steps as usize].to_string();
+        let okstr = nestest::NESTEST_REGS[self.steps as usize].to_string();
 
         println!("");
-        // println!("OK : {}", okstr);
+        println!("OK : {}", okstr);
         println!("   : {}", teststr);
         println!("pc        : {:#04X}\n", pc);
-        println!("op        : {}\n", op);
+        println!("opcode    : {}\n", op);
         // println!("admstr    : {}\n", admstr);
 
-        // if !okstr.starts_with(&teststr) {
-        //     if teststr.starts_with("0x3") {
-        //         //bug? 0x300 ??? {:#04X}
-        //     } else {
-        //         // println!("\n\n----------- error -----------");
-        //         // println!("pc    : {:#04X}\n", pc);
-        //         // println!("op    : {}\n", op);
-        //         // println!("steps : {}\n", self.steps);
-        //         // process::exit(0x0100);
-        //     }
-        // }
+        if !okstr.starts_with(&teststr) {
+            if teststr.starts_with("0x3") {
+                //bug? 0x300 ??? {:#04X}
+            } else {
+                println!("\n\n----------- error -----------");
+                println!("pc    : {:#04X}\n", pc);
+                println!("op    : {}\n", op);
+                println!("steps : {}\n", self.steps);
+                process::exit(0x0100);
+            }
+        }
     }
     pub fn reset(&mut self) {
         self.a = 0;

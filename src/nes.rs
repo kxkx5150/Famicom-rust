@@ -3,7 +3,6 @@ use crate::cpu;
 use crate::mapper0;
 use crate::mem;
 use crate::ppu;
-use crate::ppu::PPU;
 use crate::rom;
 
 use sdl2::event::Event;
@@ -20,8 +19,8 @@ pub struct Nes {
 }
 impl Nes {
     pub fn new() -> Self {
-        let ppu = ppu::NesPPU::new_empty_rom();
         let rom = rom::Rom::new();
+        let ppu = ppu::Pppu::new();
         let mapper = mapper0::Mapper0::new(rom, ppu);
         let mem = mem::Mem::new(mapper);
 
@@ -36,22 +35,20 @@ impl Nes {
         self.cpu.mem.mapper.set_rom(buf);
         let chr_rom = self.cpu.mem.mapper.rom.chr_rom.clone();
         let mirroring = self.cpu.mem.mapper.rom.screen_mirroring.clone();
-        self.cpu.mem.mapper.ppu.set_rom(chr_rom, mirroring);
         println!("load rom");
     }
     pub fn start(
         &mut self,
-        test: &str,
+        test: bool,
         mut event_pump: EventPump,
         mut canvas: Canvas<Window>,
         mut texture: Texture,
     ) {
         let mut count = 0;
         let mut testflg = false;
-        if test == "test" {
+        if test {
             self.cpu.init_nestest();
             count = 8992;
-            // count = 10;
             testflg = true;
         } else {
             self.cpu.start();
@@ -73,19 +70,19 @@ impl Nes {
                 break;
             }
             let cycles = self.cpu.run(test);
-            if !test {
-                let nmi_before = self.cpu.mem.mapper.ppu.nmi_interrupt.is_some();
-                self.cpu.mem.mapper.ppu.tick((cycles * 3) as u8);
-                let nmi_after = self.cpu.mem.mapper.ppu.nmi_interrupt.is_some();
+            self.cpu.mem.mapper.ppu.PpuRun(cycles as usize);
 
-                if !nmi_before && nmi_after {
-                    self.cpu.mem.mapper.render();
-                    texture
-                        .update(None, &self.cpu.mem.mapper.frame.data, 256 * 2 * 3)
-                        .unwrap();
-                    canvas.copy(&texture, None, None).unwrap();
-                    canvas.present();
-                }
+            if !test {
+                // self.cpu.mem.mapper.ppu.tick((cycles * 3) as u8);
+
+                // if !nmi_before && nmi_after {
+                //     self.cpu.mem.mapper.render();
+                //     texture
+                //         .update(None, &self.cpu.mem.mapper.frame.data, 256 * 2 * 3)
+                //         .unwrap();
+                //     canvas.copy(&texture, None, None).unwrap();
+                //     canvas.present();
+                // }
             }
             for event in event_pump.poll_iter() {
                 match event {
