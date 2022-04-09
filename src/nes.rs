@@ -78,7 +78,7 @@ impl Nes {
                     // println!("");
                     // self.cpu.mem.mapper.render();
                     texture
-                        .update(None, &self.cpu.mem.mapper.ppu.imgdata, 256 * 1 * 3)
+                        .update(None, &self.cpu.mem.mapper.ppu.imgdata, 256 * 2 * 3)
                         .unwrap();
                     canvas.copy(&texture, None, None).unwrap();
                     canvas.present();

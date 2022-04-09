@@ -199,15 +199,13 @@ impl Pppu {
         if self.IsScreenEnable() || self.IsSpriteEnable() {
             self.PPUAddress = (self.PPUAddress & 0xfbe0) | (self.PPUAddressBuffer & 0x041f);
 
-            if (8 <= self.PpuY && self.PpuY < 232) {
+            if (0 <= self.PpuY && self.PpuY < 240) {
                 self.build_bg();
                 self.BuildSpriteLine();
-                let mut tmpDist = (self.PpuY - 8) << 10;
                 for p in (0..256).step_by(3) {
                     let idx = self.Palette[self.BgLineBuffer[p] as usize];
                     let tmpPal = PALLETE_TABLE[idx as usize];
-                    self.setImageData(tmpDist, tmpPal);
-                    tmpDist+=3;
+                    self.setImageData(tmpPal);
                 }
             } else {
                 for x in (0..264).step_by(3) {
@@ -229,12 +227,12 @@ impl Pppu {
             } else {
                 self.PPUAddress += 0x1000;
             }
-        } else if (8 <= self.PpuY && self.PpuY < 232) {
-            let mut tmpDist = (self.PpuY - 8) << 10;
+        } else if (0 <= self.PpuY && self.PpuY < 240) {
+            // let mut tmpDist = (self.PpuY - 8) << 10;
             let tmpPal = PALLETE_TABLE[self.Palette[0x10] as usize];
             for x in (0..256).step_by(3) {
-                self.setImageData(tmpDist, tmpPal);
-                tmpDist+=3;
+                self.setImageData(tmpPal);
+                // tmpDist+=3;
             }
         }
     }
@@ -260,11 +258,14 @@ impl Pppu {
         }
         self.regs[0x02] &= 0x7f;
     }
-    fn setImageData(&mut self, dist: usize, plt: (u8, u8, u8)) {
+    fn setImageData(&mut self,  plt: (u8, u8, u8)) {
+
         self.imgdata[self.imgidx] = plt.0;
         self.imgdata[self.imgidx+1] = plt.1;
         self.imgdata[self.imgidx+2] = plt.2;
         self.imgidx+=3;
+
+
     }
     fn build_bg(&mut self) {
         if ((self.regs[0x01] & 0x08) != 0x08) {
