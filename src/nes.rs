@@ -40,13 +40,17 @@ impl Nes {
         self.cpu.mem.mapper.ppu.set_rom(chr_rom, mirroring);
         println!("load rom");
     }
-    pub fn start(&mut self, test: &str, mut event_pump: EventPump, mut canvas: Canvas<Window>) {
+    pub fn start(
+        &mut self,
+        test: bool,
+        mut event_pump: EventPump,
+        mut canvas: Canvas<Window>,
+    ) {
         let mut count = 0;
         let mut testflg = false;
-        if test == "test" {
+        if test {
             self.cpu.init_nestest();
             count = 8992;
-            // count = 10;
             testflg = true;
         } else {
             self.cpu.start();
@@ -71,18 +75,23 @@ impl Nes {
                 self.cpu.mem.mapper.ppu.run(cycles*3);
                 let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
                 if nmi {
-                    // let buf = self.cpu.mem.mapper.ppu.get_buf();
-                    // for i in 0..224 {
-                    //     for j in 0..256 {
-                    //         let base = ((i * 256 + j) * 4) as usize;
-                    //         let r = buf[base + 0];
-                    //         let g = buf[base + 1];
-                    //         let b = buf[base + 2];
-                    //         canvas.set_draw_color(Color::RGB(r, g, b));
-                    //         let _ = canvas.draw_point(Point::new(j as i32, i as i32));
-                    //     }
-                    // }
-                    // canvas.present();
+                    if self.cpu.mem.mapper.ppu.background.0.len() != 0 {
+                        self.cpu.mem.mapper.ppu.ctx.renderer.render(&self.cpu.mem.mapper.ppu.background.0, &self.cpu.mem.mapper.ppu.sprites);
+
+                        let buf = &self.cpu.mem.mapper.ppu.ctx.renderer.get_buf();
+                        for i in 0..224 {
+                            for j in 0..256 {
+                                let base = ((i * 256 + j) * 4) as usize;
+                                let r = buf[base + 0];
+                                let g = buf[base + 1];
+                                let b = buf[base + 2];
+                                canvas.set_draw_color(Color::RGB(r, g, b));
+                                let _ = canvas.draw_point(Point::new(j as i32, i as i32));
+                            }
+                        }
+                        canvas.present();
+
+                    }
                 }
             }
             for event in event_pump.poll_iter() {

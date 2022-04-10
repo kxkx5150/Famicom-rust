@@ -36,8 +36,15 @@ fn main() {
     let mut nes = nes::Nes::new();
     nes.init();
 
-    let filename = "nestest.nes";
-    let filename = "sm.nes";
+    let cputest = false;
+    let mut filename = "";
+    if cputest {
+        filename = "nestest.nes";
+    } else {
+        filename = "sm.nes";
+        filename = "nestest.nes";
+
+    }
 
     match fs::read(filename) {
         Result::Ok(buf) => {
@@ -48,5 +55,5 @@ fn main() {
             panic!("{}", err);
         }
     }
-    nes.start("", event_pump, canvas);
+    nes.start(cputest, event_pump, canvas);
 }
