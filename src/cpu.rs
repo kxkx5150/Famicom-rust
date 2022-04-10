@@ -860,9 +860,6 @@ impl Cpu {
     }
     fn post_decsp(&mut self) -> u8 {
         let sp = self.sp;
-        if sp == 0{
-            println!("");
-        }
         self.sp -= 1;
         sp
     }
