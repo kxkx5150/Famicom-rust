@@ -1,16 +1,27 @@
+use std::borrow::Borrow;
+use std::borrow::BorrowMut;
+
 use crate::ppu;
+use crate::render;
 use crate::rom;
+
 pub mod registers;
+use render::bg_pallette;
+use render::frame::Frame;
+use render::palette;
+use render::render;
+use render::render_tile;
 
 use ppu::registers::addr::AddrRegister;
 use ppu::registers::control::ControlRegister;
 use ppu::registers::mask::MaskRegister;
 use ppu::registers::scroll::ScrollRegister;
 use ppu::registers::status::StatusRegister;
+use rom::Mirroring;
 
 pub struct NesPPU {
     pub chr_rom: Vec<u8>,
-    pub mirroring: rom::Mirroring,
+    pub mirroring: Mirroring,
     pub ctrl: ControlRegister,
     pub mask: MaskRegister,
     pub status: StatusRegister,
@@ -27,6 +38,8 @@ pub struct NesPPU {
     pub scanline: u16,
     cycles: usize,
     pub nmi_interrupt: Option<u8>,
+    scroll_info: Vec<(usize, usize)>,
+    pub frame: Frame,
 }
 
 pub trait PPU {
@@ -45,10 +58,10 @@ pub trait PPU {
 
 impl NesPPU {
     pub fn new_empty_rom() -> Self {
-        Self::new(vec![0; 2048], rom::Mirroring::HORIZONTAL)
+        Self::new(vec![0; 2048], Mirroring::HORIZONTAL)
     }
-
-    pub fn new(chr_rom: Vec<u8>, mirroring: rom::Mirroring) -> Self {
+    pub fn new(chr_rom: Vec<u8>, mirroring: Mirroring) -> Self {
+        let mut s = Frame::new();
         Self {
             chr_rom: chr_rom,
             mirroring: mirroring,
@@ -66,9 +79,11 @@ impl NesPPU {
             cycles: 0,
             scanline: 0,
             nmi_interrupt: None,
+            scroll_info: (0..240).map(|x| (0, 0)).collect(),
+            frame: s,
         }
     }
-    pub fn set_rom(&mut self, chr_rom: Vec<u8>, mirroring: rom::Mirroring) {
+    pub fn set_rom(&mut self, chr_rom: Vec<u8>, mirroring: Mirroring) {
         self.chr_rom = chr_rom;
         self.mirroring = mirroring;
         println!("load ppu rom");
@@ -78,10 +93,10 @@ impl NesPPU {
         let vram_index = mirrored_vram - 0x2000;
         let name_table = vram_index / 0x400;
         match (&self.mirroring, name_table) {
-            (rom::Mirroring::VERTICAL, 2) | (rom::Mirroring::VERTICAL, 3) => vram_index - 0x800,
-            (rom::Mirroring::HORIZONTAL, 2) => vram_index - 0x400,
-            (rom::Mirroring::HORIZONTAL, 1) => vram_index - 0x400,
-            (rom::Mirroring::HORIZONTAL, 3) => vram_index - 0x800,
+            (Mirroring::VERTICAL, 2) | (Mirroring::VERTICAL, 3) => vram_index - 0x800,
+            (Mirroring::HORIZONTAL, 2) => vram_index - 0x400,
+            (Mirroring::HORIZONTAL, 1) => vram_index - 0x400,
+            (Mirroring::HORIZONTAL, 3) => vram_index - 0x800,
             _ => vram_index,
         }
     }
@@ -96,28 +111,91 @@ impl NesPPU {
             if self.is_sprite_0_hit(self.cycles) {
                 self.status.set_sprite_zero_hit(true);
             }
-
             self.cycles = self.cycles - 341;
             self.scanline += 1;
 
+            if self.scanline <= 240 && self.scroll.scroll_y <= 240 {
+                self.build_bg_line();
+            }
             if self.scanline == 241 {
                 self.status.set_vblank_status(true);
                 self.status.set_sprite_zero_hit(false);
                 if self.ctrl.generate_vblank_nmi() {
                     self.nmi_interrupt = Some(1);
                 }
-            }
-
-            if self.scanline >= 262 {
+            } else if self.scanline >= 262 {
                 self.scanline = 0;
                 self.nmi_interrupt = None;
                 self.status.set_sprite_zero_hit(false);
                 self.status.reset_vblank_status();
-                return true;
             }
         }
         return false;
     }
+    pub fn render(&mut self){
+
+    }
+    pub fn build_bg_line(&mut self) {
+        let scroll_x = (self.scroll.scroll_x) as usize;
+        let scroll_y = (self.scroll.scroll_y) as usize;
+
+        let main_nametable: &[u8];
+        let second_nametable: &[u8];
+
+        if self.scanline % 8 == 0 {
+            (main_nametable, second_nametable) = match (&self.mirroring, self.ctrl.nametable_addr())
+            {
+                (Mirroring::VERTICAL, 0x2000)
+                | (Mirroring::VERTICAL, 0x2800)
+                | (Mirroring::HORIZONTAL, 0x2000)
+                | (Mirroring::HORIZONTAL, 0x2400) => {
+                    (&self.vram[0..0x400], &self.vram[0x400..0x800])
+                }
+                (Mirroring::VERTICAL, 0x2400)
+                | (Mirroring::VERTICAL, 0x2C00)
+                | (Mirroring::HORIZONTAL, 0x2800)
+                | (Mirroring::HORIZONTAL, 0x2C00) => {
+                    (&self.vram[0x400..0x800], &self.vram[0..0x400])
+                }
+                (_, _) => {
+                    panic!("Not supported mirroring type {:?}", self.mirroring);
+                }
+            };
+
+            let tile_row = (self.scanline / 8) as usize;
+            let opts = render_tile(
+                &self,
+                main_nametable,
+                render::Rect::new(scroll_x, scroll_y, 256, 240),
+                -(scroll_x as isize),
+                -(scroll_y as isize),
+                tile_row-1,
+            );
+            if -1 < opts.0 {
+                self.frame.set_pixel(opts.0 as usize, opts.1 as usize, opts.2);
+            }
+            // if scroll_x > 0 {
+            //     render_tile(
+            //         ppu,
+            //         frame,
+            //         second_nametable,
+            //         Rect::new(0, 0, scroll_x, 240),
+            //         (256 - scroll_x) as isize,
+            //         0,
+            //     );
+            // } else if scroll_y > 0 {
+            //     render_tile(
+            //         ppu,
+            //         frame,
+            //         second_nametable,
+            //         Rect::new(0, 0, 256, scroll_y),
+            //         0,
+            //         (240 - scroll_y) as isize,
+            //     );
+            // }
+        }
+    }
+
     pub fn clear_nmi(&mut self) {
         self.nmi_interrupt = None;
     }

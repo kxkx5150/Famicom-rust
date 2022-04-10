@@ -43,7 +43,7 @@ fn main() {
     nes.init();
 
     let filename = "nestest.nes";
-    let filename = "s.nes";
+    let filename = "sm.nes";
 
     match fs::read(filename) {
         Result::Ok(buf) => {

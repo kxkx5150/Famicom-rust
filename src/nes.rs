@@ -81,7 +81,7 @@ impl Nes {
                 if !nmi_before && nmi_after {
                     self.cpu.mem.mapper.render();
                     texture
-                        .update(None, &self.cpu.mem.mapper.frame.data, 256 * 2 * 3)
+                        .update(None, &self.cpu.mem.mapper.ppu.frame.data, 256 * 2 * 3)
                         .unwrap();
                     canvas.copy(&texture, None, None).unwrap();
                     canvas.present();

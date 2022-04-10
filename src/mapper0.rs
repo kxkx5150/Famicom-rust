@@ -1,26 +1,21 @@
+use std::borrow::BorrowMut;
+
 use crate::base;
 use crate::ppu;
-use crate::render;
 use crate::rom;
-use render::frame::Frame;
-use render::palette;
-use render::render;
+use crate::render;
 
 pub struct Mapper0 {
     pub rom: rom::Rom,
     pub ppu: ppu::NesPPU,
-    pub frame: Frame,
 }
 impl base::MapperBase for base::Base {}
 impl base::MapperBase for Mapper0 {}
 impl Mapper0 {
     pub fn new(rom: rom::Rom, ppu: ppu::NesPPU) -> Self {
-        let frame = Frame::new();
-
         Self {
             rom: rom,
             ppu: ppu,
-            frame: frame,
         }
     }
 
@@ -35,6 +30,7 @@ impl Mapper0 {
         self.rom.init();
     }
     pub fn render(&mut self) {
-        render(&self.ppu, &mut self.frame);
+        // self.ppu.
+        // render(&self.ppu, &mut self.frame);
     }
 }
