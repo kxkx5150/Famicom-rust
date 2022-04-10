@@ -35,9 +35,6 @@ impl Nes {
     }
     pub fn set_rom(&mut self, mut buf: Vec<u8>) {
         self.cpu.mem.mapper.set_rom(buf);
-        let chr_rom = self.cpu.mem.mapper.rom.chr_rom.clone();
-        let mirroring = self.cpu.mem.mapper.rom.screen_mirroring.clone();
-        self.cpu.mem.mapper.ppu.set_rom(chr_rom, mirroring);
         println!("load rom");
     }
     pub fn start(
@@ -76,9 +73,9 @@ impl Nes {
                 let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
                 if nmi {
                     if self.cpu.mem.mapper.ppu.background.0.len() != 0 {
-                        self.cpu.mem.mapper.ppu.ctx.renderer.render(&self.cpu.mem.mapper.ppu.background.0, &self.cpu.mem.mapper.ppu.sprites);
+                        self.cpu.mem.mapper.render();
 
-                        let buf = &self.cpu.mem.mapper.ppu.ctx.renderer.get_buf();
+                        let buf = &self.cpu.mem.mapper.render.get_buf();
                         for i in 0..224 {
                             for j in 0..256 {
                                 let base = ((i * 256 + j) * 4) as usize;

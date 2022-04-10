@@ -1,6 +1,7 @@
-use super::PaletteList;
-use super::{BackgroundCtx, BackgroundField};
-use super::{Sprite, SpritePosition, SpritesWithCtx};
+use crate::ppu::*;
+// use super::PaletteList;
+// use super::{BackgroundCtx, BackgroundField};
+// use super::{Sprite, SpritePosition, SpritesWithCtx};
 
 #[derive(Debug)]
 pub struct Renderer {
@@ -9,7 +10,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new() -> Self {
         Renderer {
-            buf: vec![0xFF; 256 * 224 * 4],
+            buf: vec![0x00; 256 * 224 * 4],
         }
     }
 
@@ -19,8 +20,8 @@ impl Renderer {
         unsafe {}
     }
 
-    pub fn get_buf(&self) -> &Vec<u8> {
-        &self.buf
+    pub fn get_buf(&self) -> Vec<u8> {
+        self.buf.clone()
     }
 
     fn should_pixel_hide(&self, x: usize, y: usize, background: &BackgroundField) -> bool {

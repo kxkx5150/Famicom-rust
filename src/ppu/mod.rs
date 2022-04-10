@@ -1,7 +1,6 @@
 pub mod background;
 mod palette;
 mod registers;
-pub mod render;
 mod sprite;
 mod sprite_utils;
 pub mod tile;
@@ -25,7 +24,6 @@ pub struct PpuCtx<P: PaletteRam> {
     pub vram: Box<Vec<u8>>,
     pub cram: Box<Vec<u8>>,
     pub sprite_ram: Box<Vec<u8>>,
-    pub renderer: Box<render::Renderer>,
 }
 
 #[derive(Debug)]
@@ -45,8 +43,6 @@ impl Ppu {
         Self::new(vec![0; 2048], Mirroring::HORIZONTAL)
     }
     pub fn new(cram: Vec<u8>, mirroring: Mirroring) -> Ppu {
-
-        let rnr = render::Renderer::new();
         Ppu {
             cycle: 0,
             line: 0,
@@ -56,7 +52,6 @@ impl Ppu {
                 vram: Box::new(vec![0; 0x2000]),
                 cram: Box::new(cram),
                 sprite_ram: Box::new(vec![0; 0x0100]),
-                renderer: Box::new(rnr),
             },
             sprites: Vec::new(),
             background: Background::new(),
