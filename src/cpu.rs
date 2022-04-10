@@ -95,7 +95,8 @@ impl Cpu {
         }
 
         let irq = false;
-        let nmi = self.mem.mapper.ppu.nmi_interrupt.is_some();
+        let nmi = false;
+        let nmi = self.mem.mapper.ppu.get_nmi_status();
         if (nmi) {
             self.exec_nmi();
         } else if (irq) {

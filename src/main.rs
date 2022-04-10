@@ -8,7 +8,6 @@ pub mod mem;
 pub mod nes;
 pub mod nestest;
 pub mod ppu;
-pub mod render;
 pub mod rom;
 
 use sdl2::event::Event;
@@ -25,25 +24,20 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("", (256.0 * 2.0) as u32, (240.0 * 2.0) as u32)
+        .window("", (256.0 * 1.0) as u32, (224.0 * 1.0) as u32)
         .position_centered()
         .build()
         .unwrap();
-
-    let mut canvas = window.into_canvas().present_vsync().build().unwrap();
+    let mut canvas = window.into_canvas().build().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
-    canvas.set_scale(2.0, 2.0).unwrap();
 
     let creator = canvas.texture_creator();
-    let mut texture = creator
-        .create_texture_target(PixelFormatEnum::RGB24, 256 * 1, 240)
-        .unwrap();
 
     let mut nes = nes::Nes::new();
     nes.init();
 
     let filename = "nestest.nes";
-    let filename = "s.nes";
+    let filename = "sm.nes";
 
     match fs::read(filename) {
         Result::Ok(buf) => {
@@ -54,7 +48,5 @@ fn main() {
             panic!("{}", err);
         }
     }
-    // cpu test
-    // nes.start("test", event_pump, canvas,texture);
-    nes.start("", event_pump, canvas,texture);
+    nes.start("", event_pump, canvas);
 }
