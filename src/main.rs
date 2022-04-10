@@ -10,6 +10,7 @@ pub mod nestest;
 pub mod ppu;
 pub mod rom;
 pub mod render;
+pub mod dma;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -40,7 +41,8 @@ fn main() {
         filename = "nestest.nes";
     } else {
         filename = "sm.nes";
-        // filename = "nestest.nes";
+        filename = "hello.nes";
+        // filename = "color.nes";
     }
 
     match fs::read(filename) {

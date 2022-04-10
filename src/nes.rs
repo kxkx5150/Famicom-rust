@@ -37,12 +37,7 @@ impl Nes {
         self.cpu.mem.mapper.set_rom(buf);
         println!("load rom");
     }
-    pub fn start(
-        &mut self,
-        test: bool,
-        mut event_pump: EventPump,
-        mut canvas: Canvas<Window>,
-    ) {
+    pub fn start(&mut self, test: bool, mut event_pump: EventPump, mut canvas: Canvas<Window>) {
         let mut count = 0;
         let mut testflg = false;
         if test {
@@ -67,14 +62,20 @@ impl Nes {
             if count != 0 && count == i {
                 break;
             }
-            let cycles = self.cpu.run(test) as usize;
+
+            let cycles: usize = if self.cpu.mem.dma.should_run() {
+                self.cpu.mem.dma.run(&self.cpu.mem.ram, &mut self.cpu.mem.mapper.ppu);
+                514
+            } else {
+                self.cpu.run(test) as usize
+            };
+
             if !test {
-                self.cpu.mem.mapper.ppu.run(cycles*3);
+                self.cpu.mem.mapper.ppu.run(cycles * 3);
                 let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
                 if nmi {
                     if self.cpu.mem.mapper.ppu.background.0.len() != 0 {
                         self.cpu.mem.mapper.render();
-
                         let buf = &self.cpu.mem.mapper.render.get_buf();
                         for i in 0..224 {
                             for j in 0..256 {
@@ -87,7 +88,6 @@ impl Nes {
                             }
                         }
                         canvas.present();
-
                     }
                 }
             }

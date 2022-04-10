@@ -1,6 +1,7 @@
 use crate::ppu;
 use crate::{base::MapperBase, mapper0};
 use ppu::Ppu;
+use crate::dma::Dma;
 
 const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF;
@@ -10,12 +11,14 @@ const PPU_REGISTERS_MIRRORS_END: u16 = 0x3FFF;
 pub struct Mem {
     pub ram: Vec<u8>,
     pub mapper: mapper0::Mapper0,
+    pub dma: Dma,
 }
 impl Mem {
     pub fn new(mapper: mapper0::Mapper0) -> Self {
         Self {
             ram: (0..0x800).map(|x| 0).collect(),
             mapper: mapper,
+            dma: Dma::new(),
         }
     }
     pub fn init(&mut self) {
@@ -41,16 +44,16 @@ impl Mem {
                     0x0000 => {}
                     0x0001 => {}
                     0x0002 => {
-                        return self.mapper.ppu.read(addr);
+                        return self.mapper.ppu.read(addr- 0x2000);
                     }
                     0x0003 => {}
                     0x0004 => {
-                        return self.mapper.ppu.read(addr);
+                        return self.mapper.ppu.read(addr- 0x2000);
                     }
                     0x0005 => {}
                     0x0006 => {}
                     0x0007 => {
-                        return self.mapper.ppu.read(addr);
+                        return self.mapper.ppu.read(addr- 0x2000);
                     }
                     0x0008..=PPU_REGISTERS_MIRRORS_END => {
                         let mirror_down_addr = addr & 0b00100000_00000111;
@@ -130,26 +133,26 @@ impl Mem {
             }
             0x2000 => match (addr & 0x07) {
                 0x00 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x01 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x02 => {}
                 0x03 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x04 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x05 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x06 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x07 => {
-                    self.mapper.ppu.write(addr, data);
+                    self.mapper.ppu.write(addr- 0x2000, data);
                 }
                 0x0008..=PPU_REGISTERS_MIRRORS_END => {
                     let mirror_down_addr = addr & 0b00100000_00000111;
@@ -184,12 +187,7 @@ impl Mem {
                 0x4012 => {}
                 0x4013 => {}
                 0x4014 => {
-                    let mut buffer: [u8; 256] = [0; 256];
-                    let hi: u16 = (data as u16) << 8;
-                    for i in 0..256u16 {
-                        buffer[i as usize] = self.get(hi + i);
-                    }
-                    // self.mapper.ppu.write_oam_dma(&buffer);
+                    self.dma.set(data)    
                 }
                 0x4015 => {}
                 0x4016 => {}

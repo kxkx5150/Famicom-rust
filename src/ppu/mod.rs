@@ -102,6 +102,11 @@ impl Ppu {
                 HORIZONTAL => true,
                 FOUR_SCREEN => false,
             };
+            if self.registers.is_background_enable() {
+                print!("");
+            }else {
+                println!("a");
+            }
             let mut config = SpriteConfig {
                 offset_addr_by_name_table: None,
                 offset_addr_by_background_table: self.registers.get_background_table_offset(),
@@ -133,7 +138,7 @@ impl Ppu {
         if self.line >= 262 {
             self.registers.clear_vblank();
             self.registers.clear_sprite_hit();
-            self.nmi = false;
+            // self.nmi = false;
             self.line = 0;
             self.sprites = build_sprites(
                 &self.ctx.cram,
