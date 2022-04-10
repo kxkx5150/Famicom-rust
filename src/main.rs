@@ -22,14 +22,14 @@ use sdl2::video::Window;
 use sdl2::video::WindowContext;
 use sdl2::EventPump;
 
+const WIDTH: u32 = 256;
+const HEIGHT: u32 = 224;
+
 #[macro_use]
 extern crate bitflags;
 
 fn main() {
-    let (event_pump, canvas, creator) = create_window();
-    let mut texture = creator
-        .create_texture_target(PixelFormatEnum::RGB24, 256 * 1, 240)
-        .unwrap();
+    let (event_pump, canvas) = create_window();
 
     let mut nes = nes::Nes::new();
     nes.init();
@@ -38,7 +38,7 @@ fn main() {
     if cputest {
         filename = "nestest.nes";
     } else {
-        filename = "s.nes";
+        filename = "sm.nes";
     }
 
     match fs::read(filename) {
@@ -48,19 +48,17 @@ fn main() {
             panic!("{}", err);
         }
     }
-    nes.start(cputest, event_pump, canvas, texture);
+    nes.start(cputest, event_pump, canvas);
 }
-fn create_window() -> (EventPump, Canvas<Window>, TextureCreator<WindowContext>) {
+fn create_window() -> (EventPump, Canvas<Window>) {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("", (256.0 * 1.0) as u32, (240.0 * 1.0) as u32)
+        .window("", (WIDTH) as u32, (HEIGHT) as u32)
         .position_centered()
         .build()
         .unwrap();
-    let mut canvas = window.into_canvas().present_vsync().build().unwrap();
+    let canvas = window.into_canvas().build().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
-    canvas.set_scale(1.0, 1.0).unwrap();
-    let creator = canvas.texture_creator();
-    (event_pump, canvas, creator)
+    (event_pump, canvas)
 }

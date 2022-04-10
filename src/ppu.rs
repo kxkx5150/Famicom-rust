@@ -35,7 +35,7 @@ impl Pppu {
             PpuY: 0,
             regs: (0..8).map(|x| 0).collect(),
             nmi: false,
-            imgdata: vec![0; 256 * 2 * 240 * 3],
+            imgdata: vec![0; 256 * 240 * 3],
             imgidx: 0,
 
             Sprite0Line: false,
@@ -71,12 +71,13 @@ impl Pppu {
                 self.SetMirror(true, rom);
             }
             Mirroring::FOUR_SCREEN => {
-                self.SetMirrors(0, 1, 2, 3, rom);
+                self.init_mirrors(0, 1, 2, 3, rom);
             }
         }
         println!("ppu init");
     }
     pub fn reset(&mut self) {
+        self.imgidx = 0;
         self.ScrollRegisterFlag = false;
         self.PPUAddressRegisterFlag = false;
         self.PPUAddressBuffer = 0;
@@ -117,25 +118,25 @@ impl Pppu {
     fn set_chr_rom_page1k(&mut self, mut page: isize, romPage: isize, rom: &mut rom::Rom) {
         if (romPage >= 0x0100) {
             rom.chrrom_state[page as usize] = romPage as u8;
-            let vrm = self.vrams[(romPage & 0xff) as usize].clone();
-            self.vram[page as usize] = vrm;
+            let vrm = &self.vrams[(romPage & 0xff) as usize];
+            self.vram[page as usize] = vrm[..].to_vec();
         } else {
             if (rom.chr_rom_page_count > 0) {
                 let tmp = romPage % (rom.chr_rom_page_count as isize * 8);
                 rom.chrrom_state[page as usize] = tmp as u8;
-                let vrm = rom.chrrom_pages[rom.chrrom_state[page as usize] as usize].clone();
-                self.vram[page as usize] = vrm;
+                let vrm = &rom.chrrom_pages[rom.chrrom_state[page as usize] as usize];
+                self.vram[page as usize] = vrm[..].to_vec();
             }
         }
     }
     pub fn SetMirror(&mut self, value: bool, rom: &mut rom::Rom) {
         if (value) {
-            self.SetMirrors(0, 0, 1, 1, rom);
+            self.init_mirrors(0, 0, 1, 1, rom);
         } else {
-            self.SetMirrors(0, 1, 0, 1, rom);
+            self.init_mirrors(0, 1, 0, 1, rom);
         }
     }
-    pub fn SetMirrors(
+    pub fn init_mirrors(
         &mut self,
         value0: isize,
         value1: isize,
@@ -323,7 +324,8 @@ impl Pppu {
                 nameAddrLow &= 0xffe0;
                 nameAddrHigh ^= 0x01;
                 let idx = nameAddrHigh;
-                self.vram[nameAddrHigh] = self.vram[idx].clone();
+                let vrm = &self.vram[idx];
+                self.vram[nameAddrHigh] =vrm[..].to_vec();
             } else {
                 nameAddrLow += 1;
             }

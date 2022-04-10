@@ -13,6 +13,10 @@ use sdl2::render::Canvas;
 use sdl2::render::Texture;
 use sdl2::video::Window;
 use sdl2::EventPump;
+use sdl2::rect::{Point};
+
+const WIDTH: u32 = 256;
+const HEIGHT: u32 = 224;
 
 pub struct Nes {
     cpu: cpu::Cpu,
@@ -42,7 +46,6 @@ impl Nes {
         test: bool,
         mut event_pump: EventPump,
         mut canvas: Canvas<Window>,
-        mut texture: Texture,
     ) {
         let mut count = 0;
         let mut testflg = false;
@@ -53,7 +56,7 @@ impl Nes {
         } else {
             self.cpu.start();
         }
-        self.main_loop(count, testflg, event_pump, canvas, texture);
+        self.main_loop(count, testflg, event_pump, canvas);
     }
     pub fn main_loop(
         &mut self,
@@ -61,7 +64,6 @@ impl Nes {
         test: bool,
         mut event_pump: EventPump,
         mut canvas: Canvas<Window>,
-        mut texture: Texture,
     ) {
         let mut i = 0;
         loop {
@@ -75,12 +77,17 @@ impl Nes {
             if !test {
                 let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
                 if nmi {
-                    // println!("");
-                    // self.cpu.mem.mapper.render();
-                    texture
-                        .update(None, &self.cpu.mem.mapper.ppu.imgdata, 256 * 2 * 3)
-                        .unwrap();
-                    canvas.copy(&texture, None, None).unwrap();
+                    let buf = &self.cpu.mem.mapper.ppu.imgdata;
+                    for i in 0..HEIGHT {
+                        for j in 0..WIDTH {
+                            let base = ((i * WIDTH + j) * 3) as usize;
+                            let r = buf[base + 0];
+                            let g = buf[base + 1];
+                            let b = buf[base + 2];
+                            canvas.set_draw_color(Color::RGB(r, g, b));
+                            let _ = canvas.draw_point(Point::new(j as i32, i as i32));
+                        }
+                    }
                     canvas.present();
                 }
             }
@@ -97,3 +104,4 @@ impl Nes {
         }
     }
 }
+
