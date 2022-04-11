@@ -442,9 +442,10 @@ impl Pppu {
     }
     pub fn WritePPUData(&mut self, value: u8) {
         self.regs[0x07] = value;
-        self.vram[self.PPUAddress >> 10][self.PPUAddress & 0x03ff] = value;
+        let tmpPPUAddress = self.PPUAddress & 0x3fff;
+        self.vram[tmpPPUAddress >> 10][tmpPPUAddress & 0x03ff] = value;
 
-        if (self.PPUAddress < 0x3000) {
+        if (tmpPPUAddress < 0x3000) {
             let val = if (self.regs[0x00] & 0x04) == 0x04 {
                 32
             } else {
@@ -455,8 +456,8 @@ impl Pppu {
             return;
         }
 
-        if (self.PPUAddress < 0x3eff) {
-            self.vram[(self.PPUAddress - 0x1000) >> 10][(self.PPUAddress - 0x1000) & 0x03ff] =
+        if (tmpPPUAddress < 0x3eff) {
+            self.vram[(tmpPPUAddress - 0x1000) >> 10][(tmpPPUAddress - 0x1000) & 0x03ff] =
                 value;
 
             let val = if (self.regs[0x00] & 0x04) == 0x04 {
@@ -469,8 +470,7 @@ impl Pppu {
             return;
         }
 
-        let pln = self.PPUAddress & 0x001f;
-
+        let pln = tmpPPUAddress & 0x001f;
         if (pln == 0x00 || pln == 0x10) {
             self.Palette[0x10] = (value & 0x3f);
             let plt = self.Palette[0x10];
@@ -484,6 +484,7 @@ impl Pppu {
             1
         };
         self.PPUAddress = (self.PPUAddress + val) & 0xffff;
+        print!("");
     }
     pub fn WriteSpriteData(&mut self, value: u8) {
         let idx = self.regs[0x03];

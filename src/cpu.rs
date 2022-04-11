@@ -78,6 +78,7 @@ impl Cpu {
         self.pc = 0xc000;
     }
     pub fn exec_nmi(&mut self){
+        self.mem.mapper.ppu.clear_nmi();        
         let opc = Opcode {
             int:256,
             hex: "100".to_string(),
@@ -87,7 +88,6 @@ impl Cpu {
         };
         self.cpuclock += 7;
         self.exe_instruction(opc.op.as_str(), 0);
-        self.mem.mapper.ppu.clear_nmi();        
     }
     pub fn run(&mut self, test: bool) -> u64 {
         // if self.steps == 0 {
