@@ -71,7 +71,8 @@ impl Nes {
             }
             let cycles = self.cpu.run(test);
             self.cpu.mem.mapper.ppu.PpuRun(cycles as usize);
-
+            self.cpu.clear_cpucycle();
+            
             if !test {
                 let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
                 if nmi {

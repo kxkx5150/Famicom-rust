@@ -94,11 +94,10 @@ impl Cpu {
         //     self.cpuclock = 0;
         // }
 
-        let irq = false;
         let nmi = self.mem.mapper.ppu.get_nmi_status();
         if (nmi) {
             self.exec_nmi();
-        } else if (irq) {
+        } else if (false) {//irq
             
         }
 
@@ -124,8 +123,10 @@ impl Cpu {
         let cpucycle = self.cpuclock;
         self.totalcycle += cpucycle;
         self.steps += 1;
-        self.cpuclock = 0;
         cpucycle
+    }
+    pub fn clear_cpucycle(&mut self){
+        self.cpuclock = 0;
     }
     fn show_state(&mut self, pc: u16, op: &String, admstr: &String){
         let p = self.getp(false);

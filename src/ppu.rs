@@ -1,4 +1,4 @@
-use crate::palette::PALLETE_TABLE;
+use crate::palette::*;
 use crate::rom;
 use rom::Mirroring;
 use std::borrow::BorrowMut;
@@ -141,7 +141,8 @@ impl Pppu {
             if (rom.chr_rom_page_count > 0) {
                 let tmp = romPage % (rom.chr_rom_page_count as isize * 8);
                 rom.chrrom_state[page as usize] = tmp as u8;
-                self.vram[page as usize] = rom.chrrom_pages[rom.chrrom_state[page as usize] as usize].to_vec();
+                self.vram[page as usize] =
+                    rom.chrrom_pages[rom.chrrom_state[page as usize] as usize].to_vec();
             }
         }
     }
@@ -199,13 +200,13 @@ impl Pppu {
             if (8 <= self.PpuY && self.PpuY < 232) {
                 self.build_bg();
                 // self.BuildSpriteLine();
-                for p in (0..256){
+                for p in (0..256) {
                     let idx = self.Palette[self.BgLineBuffer[p] as usize];
                     let tmpPal = PALLETE_TABLE[idx as usize];
                     self.setImageData(tmpPal);
                 }
             } else {
-                for p in (0..264){
+                for p in (0..264) {
                     self.BgLineBuffer[p] = 0x10;
                 }
                 // self.BuildSpriteLine();
@@ -227,7 +228,7 @@ impl Pppu {
         } else if (8 <= self.PpuY && self.PpuY < 232) {
             // let mut tmpDist = (self.PpuY - 8) << 10;
             let tmpPal = PALLETE_TABLE[self.Palette[0x10] as usize];
-            for x in (0..256){
+            for x in (0..256) {
                 self.setImageData(tmpPal);
                 // tmpDist+=3;
             }
@@ -240,12 +241,6 @@ impl Pppu {
         if ((self.regs[0x00] & 0x80) == 0x80) {
             self.nmi = true;
         }
-    }
-    pub fn clear_nmi(&mut self) {
-        self.nmi = false;
-    }
-    pub fn get_nmi_status(&mut self) -> bool {
-        self.nmi
     }
     fn postRender(&mut self) {
         self.imgidx = 0;
@@ -263,8 +258,8 @@ impl Pppu {
     }
     fn build_bg(&mut self) {
         if ((self.regs[0x01] & 0x08) != 0x08) {
-            for x in 0..264 {
-                self.BgLineBuffer[x] = 0x10;
+            for p in 0..264 {
+                self.BgLineBuffer[p] = 0x10;
             }
             return;
         }
@@ -277,10 +272,6 @@ impl Pppu {
         }
     }
     fn build_bg_line(&mut self) {
-        let pletary = vec![
-            0x10, 0x01, 0x02, 0x03, 0x10, 0x05, 0x06, 0x07, 0x10, 0x09, 0x0a, 0x0b, 0x10, 0x0d,
-            0x0e, 0x0f,
-        ];
         let lval = (self.PPUAddress & 0x7000) >> 12;
         let rval = ((self.regs[0x00] & 0x10) as usize) << 8;
 
@@ -305,18 +296,17 @@ impl Pppu {
             let spbidx2 = tmpSrcV[(ptnDist + 8) as usize];
             let ptn = self.SPBitArray[spbidx1 as usize][spbidx2 as usize].clone();
 
-            for i in s..8 {
-                let idx = ptn[i] | attr;
-                self.BgLineBuffer[q] = pletary[idx as usize];
+            while s < 8 {
+                self.BgLineBuffer[q] = PALLETE[(ptn[s] | attr) as usize];
                 q += 1;
+                s += 1;
             }
             s = 0;
 
             if ((nameAddrLow & 0x001f) == 0x001f) {
                 nameAddrLow &= 0xffe0;
                 nameAddrHigh ^= 0x01;
-                let idx = nameAddrHigh ^ 0x01;
-                let vval = &self.vram[idx];
+                let vval = &self.vram[nameAddrHigh ^ 0x01];
                 self.vram[nameAddrHigh] = vval.clone();
             } else {
                 nameAddrLow += 1;
@@ -386,6 +376,12 @@ impl Pppu {
         });
         return 8;
     }
+    pub fn clear_nmi(&mut self) {
+        self.nmi = false;
+    }
+    pub fn get_nmi_status(&mut self) -> bool {
+        self.nmi
+    }
 
     pub fn WriteScrollRegister(&mut self, value: u8) {
         self.regs[0x05] = value;
@@ -427,38 +423,32 @@ impl Pppu {
         self.PPUAddressRegisterFlag = false;
         return result;
     }
+
     pub fn ReadPPUData(&mut self) -> u8 {
         let tmp = self.PPUReadBuffer;
         let addr = self.PPUAddress & 0x3fff;
         self.PPUReadBuffer = self.vram[(addr >> 10) as usize][addr & 0x03ff] as usize;
 
-        let flg = (if (self.regs[0x00] & 0x04) == 0x04 {
+        let val = (if (self.regs[0x00] & 0x04) == 0x04 {
             32
         } else {
             1
         });
-        self.PPUAddress = (self.PPUAddress + flg) & 0xffff;
+        self.PPUAddress = (self.PPUAddress + val) & 0xffff;
         return tmp as u8;
     }
+
     pub fn WritePPUData(&mut self, value: u8) {
         self.regs[0x07] = value;
         let tmpPPUAddress = self.PPUAddress & 0x3fff;
-        self.vram[tmpPPUAddress >> 10][tmpPPUAddress & 0x03ff] = value;
+        let vramidx = tmpPPUAddress >> 10;
+        self.vram[vramidx][tmpPPUAddress & 0x03ff] = value;
 
+
+
+        
         if (tmpPPUAddress < 0x3000) {
-            let val = if (self.regs[0x00] & 0x04) == 0x04 {
-                32
-            } else {
-                1
-            };
-            let adr = (self.PPUAddress + val) & 0xffff;
-            self.PPUAddress = adr;
-            return;
-        }
-
-        if (tmpPPUAddress < 0x3eff) {
-            self.vram[(tmpPPUAddress - 0x1000) >> 10][(tmpPPUAddress - 0x1000) & 0x03ff] =
-                value;
+            self.vram[vramidx+2][tmpPPUAddress & 0x03ff] = value;
 
             let val = if (self.regs[0x00] & 0x04) == 0x04 {
                 32
@@ -470,13 +460,26 @@ impl Pppu {
             return;
         }
 
-        let pln = tmpPPUAddress & 0x001f;
-        if (pln == 0x00 || pln == 0x10) {
+        if (tmpPPUAddress < 0x3eff) {
+            self.vram[(tmpPPUAddress - 0x1000) >> 10][(tmpPPUAddress - 0x1000) & 0x03ff] = value;
+
+            let val = if (self.regs[0x00] & 0x04) == 0x04 {
+                32
+            } else {
+                1
+            };
+
+            self.PPUAddress = (self.PPUAddress + val) & 0xffff;
+            return;
+        }
+
+        let palNo = tmpPPUAddress & 0x001f;
+        if (palNo == 0x00 || palNo == 0x10) {
             self.Palette[0x10] = (value & 0x3f);
             let plt = self.Palette[0x10];
             self.Palette[0x00] = plt;
         } else {
-            self.Palette[pln] = value & 0x3f;
+            self.Palette[palNo] = value & 0x3f;
         }
         let val = if (self.regs[0x00] & 0x04) == 0x04 {
             32
@@ -484,8 +487,8 @@ impl Pppu {
             1
         };
         self.PPUAddress = (self.PPUAddress + val) & 0xffff;
-        print!("");
     }
+
     pub fn WriteSpriteData(&mut self, value: u8) {
         let idx = self.regs[0x03];
         self.sprite_ram[idx as usize] = value;
