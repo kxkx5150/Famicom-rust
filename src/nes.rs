@@ -36,10 +36,8 @@ impl Nes {
         self.cpu.init();
     }
     pub fn set_rom(&mut self, mut buf: Vec<u8>) {
-        self.cpu.mem.mapper.set_rom(buf);
-        let chr_rom = self.cpu.mem.mapper.rom.chr_rom.clone();
-        let mirroring = self.cpu.mem.mapper.rom.screen_mirroring.clone();
         println!("load rom");
+        self.cpu.mem.mapper.set_rom(buf);
     }
     pub fn start(
         &mut self,

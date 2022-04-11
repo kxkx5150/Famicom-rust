@@ -21,12 +21,12 @@ impl Mapper0 {
         self.rom.set_rom(buf);
         self.rom.set_prgrom_page(0, 0);
         self.rom.set_prgrom_page(1, self.rom.prg_rom_page_count - 1);
-        self.ppu.init(&mut self.rom);
         self.ppu.set_chr_rom_page(0, &mut self.rom);
+        self.ppu.start(&mut self.rom);
     }
     pub fn init(&mut self) {
         println!("mapper init");
-        self.rom.init();
+        // self.rom.init();
     }
     pub fn render(&mut self) {
 
