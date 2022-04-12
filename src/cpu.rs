@@ -91,9 +91,9 @@ impl Cpu {
 
     }
     pub fn run(&mut self, test: bool) -> u64 {
-        if self.steps == 0 {
-            self.cpuclock = 0;
-        }
+        // if self.steps == 0 {
+        //     self.cpuclock = 0;
+        // }
 
         let irq = false;
         let nmi = self.mem.mapper.ppu.get_nmi_status();

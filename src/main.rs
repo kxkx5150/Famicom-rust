@@ -41,7 +41,7 @@ fn main() {
         filename = "nestest.nes";
     } else {
         filename = "sm.nes";
-        filename = "hello.nes";
+        // filename = "hello.nes";
         // filename = "color.nes";
     }
 
