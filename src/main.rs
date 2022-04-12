@@ -40,7 +40,7 @@ fn main() {
     if cputest {
         filename = "nestest.nes";
     } else {
-        filename = "sm.nes";
+        filename = "j.nes";
         // filename = "hello.nes";
         // filename = "color.nes";
     }
