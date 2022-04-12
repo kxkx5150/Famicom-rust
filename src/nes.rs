@@ -71,25 +71,22 @@ impl Nes {
             };
 
             self.cpu.mem.mapper.ppu.run(cycles * 3);
+            if self.cpu.mem.mapper.ppu.get_img() {
+                self.cpu.mem.mapper.ppu.clear_okimg();
 
-            
-            let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
-            if nmi {
-                if self.cpu.mem.mapper.ppu.background.0.len() != 0 {
-                    self.cpu.mem.mapper.render();
-                    let buf = &self.cpu.mem.mapper.render.get_buf();
-                    for i in 0..224 {
-                        for j in 0..256 {
-                            let base = ((i * 256 + j) * 4) as usize;
-                            let r = buf[base + 0];
-                            let g = buf[base + 1];
-                            let b = buf[base + 2];
-                            canvas.set_draw_color(Color::RGB(r, g, b));
-                            let _ = canvas.draw_point(Point::new(j as i32, i as i32));
-                        }
+                self.cpu.mem.mapper.render();
+                let buf = &self.cpu.mem.mapper.render.get_buf();
+                for i in 0..224 {
+                    for j in 0..256 {
+                        let base = ((i * 256 + j) * 4) as usize;
+                        let r = buf[base + 0];
+                        let g = buf[base + 1];
+                        let b = buf[base + 2];
+                        canvas.set_draw_color(Color::RGB(r, g, b));
+                        let _ = canvas.draw_point(Point::new(j as i32, i as i32));
                     }
-                    canvas.present();
                 }
+                canvas.present();
             }
 
             for event in event_pump.poll_iter() {

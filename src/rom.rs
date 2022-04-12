@@ -110,10 +110,6 @@ impl Rom {
 
         self.prg_rom = self.rom[prg_rom_start..(prg_rom_start + prg_rom_size)].to_vec();
         self.chr_rom = self.rom[chr_rom_start..(chr_rom_start + chr_rom_size)].to_vec();
-
-        println!("program rom size is {}", self.prg_rom_page_count);
-        println!("character rom size is {}", self.chr_rom_page_count);
-        println!("mapper type is {}", self.mapper_number);
         self.init();
     }
     pub fn clear_roms(&mut self) {

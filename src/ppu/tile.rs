@@ -1,5 +1,5 @@
 use self::super::palette::*;
-use self::super::sprite_utils::*;
+use self::super::sprite::*;
 
 #[derive(Debug)]
 pub struct Tile {
@@ -22,7 +22,7 @@ impl Tile {
         let sprite = build(
             &cram,
             sprite_id,
-            config.offset_addr_by_background_table,
+            config.offset_addr_bgtable,
             true,
         );
         Tile {

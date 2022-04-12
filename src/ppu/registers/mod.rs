@@ -29,14 +29,14 @@ pub trait PpuRegisters {
     fn set_vblank(&mut self);
     fn set_sprite_hit(&mut self);
     fn clear_sprite_hit(&mut self);
-    fn get_sprite_table_offset(&self) -> u16;
-    fn get_background_table_offset(&self) -> u16;
+    fn get_sp_table_offset(&self) -> u16;
+    fn get_bg_table_offset(&self) -> u16;
     fn get_ppu_addr_increment_value(&self) -> usize;
     fn get_name_table_id(&self) -> u8;
     fn get_scroll_x(&self) -> u8;
     fn get_scroll_y(&self) -> u8;
     fn is_irq_enable(&self) -> bool;
-    fn is_background_enable(&self) -> bool;
+    fn is_bg_enable(&self) -> bool;
     fn is_sprite_enable(&self) -> bool;
     fn is_background_masked(&self) -> bool;
     fn is_sprite_masked(&self) -> bool;
@@ -131,7 +131,7 @@ impl PpuRegisters for Registers {
         self.ppu_ctrl1 & 0x80 == 0x80
     }
 
-    fn get_sprite_table_offset(&self) -> u16 {
+    fn get_sp_table_offset(&self) -> u16 {
         if self.ppu_ctrl1 & 0x08 == 0x08 {
             0x1000
         } else {
@@ -139,7 +139,7 @@ impl PpuRegisters for Registers {
         }
     }
 
-    fn get_background_table_offset(&self) -> u16 {
+    fn get_bg_table_offset(&self) -> u16 {
         if self.ppu_ctrl1 & 0x10 == 0x10 {
             0x1000
         } else {
@@ -159,7 +159,7 @@ impl PpuRegisters for Registers {
         self.ppu_scroll.get_y()
     }
 
-    fn is_background_enable(&self) -> bool {
+    fn is_bg_enable(&self) -> bool {
         self.ppu_ctrl2 & 0x08 == 0x08
     }
 

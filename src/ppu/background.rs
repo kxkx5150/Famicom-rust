@@ -1,5 +1,5 @@
 use super::palette::*;
-use super::sprite_utils::*;
+use super::sprite::*;
 use super::tile::Tile;
 
 #[derive(Debug)]
@@ -38,13 +38,13 @@ impl Background {
             let tile_x = x + tile.0;
             let clamped_tile_x = tile_x % 32;
             let name_table_id = ((tile_x / 32) % 2) + table_id_offset;
-            config.offset_addr_by_name_table = Some((name_table_id as u16) * 0x400);
+            config.offset_addr_ntable = Some((name_table_id as u16) * 0x400);
             let position: SpritePosition = (clamped_tile_x as u8, clamped_tile_y as u8);
             self.0.push(BackgroundCtx {
                 tile: Tile::new(vram, cram, palette, &position, &config),
                 scroll_x: scroll.0,
                 scroll_y: scroll.1,
-                is_enabled: config.is_background_enable,
+                is_enabled: config.is_bg_enable,
             });
         }
     }
