@@ -40,7 +40,7 @@ fn main() {
     if cputest {
         filename = "nestest.nes";
     } else {
-        filename = "j.nes";
+        filename = "sms.nes";
         // filename = "hello.nes";
         // filename = "color.nes";
     }
@@ -51,7 +51,16 @@ fn main() {
         }
         Result::Err(err) => {
             eprintln!("Cannot open .nes file: {}", filename);
-            panic!("{}", err);
+            filename = "j.nes";
+            match fs::read(filename) {
+                Result::Ok(buf) => {
+                    nes.set_rom(buf);
+                }
+                Result::Err(err) => {
+                    eprintln!("Cannot open .nes file: {}", filename);
+                    panic!("{}", err);
+                }
+            }
         }
     }
     nes.start(cputest, event_pump, canvas);
