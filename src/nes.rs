@@ -74,8 +74,9 @@ impl Nes {
             self.cpu.clear_cpucycle();
             
             if !test {
-                let nmi = self.cpu.mem.mapper.ppu.get_nmi_status();
-                if nmi {
+                let img = self.cpu.mem.mapper.ppu.get_img();
+                if img {
+                    self.cpu.mem.mapper.ppu.clear_img();
                     let buf = &self.cpu.mem.mapper.ppu.imgdata;
                     for i in 0..HEIGHT {
                         for j in 0..WIDTH {

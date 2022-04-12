@@ -38,7 +38,7 @@ fn main() {
     if cputest {
         filename = "nestest.nes";
     } else {
-        filename = "sm.nes";
+        filename = "hello.nes";
     }
 
     match fs::read(filename) {

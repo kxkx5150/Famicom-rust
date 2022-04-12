@@ -10,6 +10,7 @@ pub struct Pppu {
     regs: Vec<u8>,
     nmi: bool,
     pub imgdata: Vec<u8>,
+    pub imgok:bool,
     imgidx: usize,
     rcount: usize,
 
@@ -37,6 +38,7 @@ impl Pppu {
             regs: (0..8).map(|x| 0).collect(),
             nmi: false,
             imgdata: vec![0; 256 * 240 * 3],
+            imgok:false,
             imgidx: 0,
             rcount: 0,
 
@@ -60,6 +62,7 @@ impl Pppu {
     }
     pub fn start(&mut self, rom: &mut rom::Rom) {
         println!("ppu start");
+        self.crate_spbit_array();
         self.Palette = [0x0f; 33].to_vec();
         self.sprite_ram = [0; 0x100].to_vec();
         self.BgLineBuffer = [0; 264].to_vec();
@@ -76,9 +79,11 @@ impl Pppu {
                 self.init_mirrors(0, 1, 2, 3, rom);
             }
         }
+        
         self.PpuX = 341;
         self.PpuY = 0;
         self.Sprite0Line = false;
+        self.imgok = false;
     }
     pub fn reset(&mut self) {
         self.imgidx = 0;
@@ -91,8 +96,21 @@ impl Pppu {
         self.PpuX = 341;
         self.PpuY = 0;
         self.Sprite0Line = false;
-        self.nmi = false;
+        self.imgok = false;
         self.clear_arryas();
+    }
+    pub fn crate_spbit_array(&mut self) {
+        for i in 0..256 {
+            for j in 0..256 {
+                for k in 0..8 {
+                    let lval = (((i << k) & 0x80) >> 7);
+                    let rval = (((j << k) & 0x80) >> 6);
+                    let val = (lval | rval);
+
+                    self.SPBitArray[i][j][k] = val as u8;
+                }
+            }
+        }
     }
     pub fn clear_arryas(&mut self) {
         // self.regs = (0..8).map(|x| 0).collect();
@@ -101,17 +119,6 @@ impl Pppu {
         // self.BgLineBuffer = (0..264).map(|x| 0).collect();
         // self.Palette = (0..33).map(|x| 0x0f).collect();
         // self.sprite_ram =  (0..0x100).map(|x| 0).collect();
-
-        for i in 0..256 {
-            for j in 0..256 {
-                for k in 0..8 {
-                    let mut val = ((((i << k) & 0x80) as usize >> 7)
-                        | (((j << k) & 0x80) as usize >> 6))
-                        as u8;
-                    self.SPBitArray[i][j][k] = val;
-                }
-            }
-        }
     }
     pub fn SetMirror(&mut self, value: bool, rom: &mut rom::Rom) {
         if (value) {
@@ -178,6 +185,10 @@ impl Pppu {
 
         while (self.PpuX >= 341) {
             self.PpuX -= 341;
+            if self.PpuY == 0 {
+                self.imgidx = 0;
+                self.imgok = false;
+            }
             self.PpuY += 1;
             self.Sprite0Line = false;
 
@@ -204,6 +215,9 @@ impl Pppu {
                     let idx = self.Palette[self.BgLineBuffer[p] as usize];
                     let tmpPal = PALLETE_TABLE[idx as usize];
                     self.setImageData(tmpPal);
+                    if 80 < p{
+                        print!("");
+                    }
                 }
             } else {
                 for p in (0..264) {
@@ -241,9 +255,10 @@ impl Pppu {
         if ((self.regs[0x00] & 0x80) == 0x80) {
             self.nmi = true;
         }
+        self.imgok = true;
+        print!("");
     }
     fn postRender(&mut self) {
-        self.imgidx = 0;
         self.PpuY = 0;
         if (self.IsScreenEnable() || self.IsSpriteEnable()) {
             self.PPUAddress = self.PPUAddressBuffer;
@@ -272,32 +287,37 @@ impl Pppu {
         }
     }
     fn build_bg_line(&mut self) {
-        let lval = (self.PPUAddress & 0x7000) >> 12;
-        let rval = ((self.regs[0x00] & 0x10) as usize) << 8;
-
         let nameAddr = 0x2000 | (self.PPUAddress & 0x0fff);
-        let tableAddr = lval | rval;
+        let tableAddr = ((self.PPUAddress & 0x7000) >> 12) | ((((self.regs[0x00] & 0x10))as usize) << 8);
         let mut nameAddrHigh = nameAddr >> 10;
         let mut nameAddrLow = nameAddr & 0x03ff;
+        let mut pre_name_addrh = nameAddrHigh;
         let mut s = self.HScrollTmp;
         let mut q = 0;
 
+        if self.PpuY == 45{
+            print!("");
+        }
         for p in 0..33 {
-            let mut ptnDist = ((self.vram[nameAddrHigh][nameAddrLow] as usize) << 4) | tableAddr;
+            let tmpVRAMHigh = &self.vram[pre_name_addrh];
+            let mut ptnDist = ((self.vram[pre_name_addrh][nameAddrLow] as usize) << 4) | tableAddr;
             let tmpSrcV = &self.vram[(ptnDist >> 10) as usize];
             ptnDist &= 0x03ff;
-            let attr = ((self.vram[nameAddrHigh]
-                [((nameAddrLow & 0x0380) >> 4) | (((nameAddrLow & 0x001c) >> 2) + 0x03c0)]
-                << 2)
-                >> (((nameAddrLow & 0x0040) >> 4) | (nameAddrLow & 0x0002)))
-                & 0x0c;
+            
+            let lval = (nameAddrLow & 0x0380) >> 4;
+            let rval = ((nameAddrLow & 0x001c) >> 2) + 0x03c0;
+      
+            let lval2 = (nameAddrLow & 0x0040) >> 4;
+            let rval2 = nameAddrLow & 0x0002;
+            let attr = ((tmpVRAMHigh[lval | rval] << 2) >> (lval2 | rval2)) & 0x0c;
 
             let spbidx1 = tmpSrcV[ptnDist as usize];
             let spbidx2 = tmpSrcV[(ptnDist + 8) as usize];
-            let ptn = self.SPBitArray[spbidx1 as usize][spbidx2 as usize].clone();
+            let ptn = &self.SPBitArray[spbidx1 as usize][spbidx2 as usize];
 
             while s < 8 {
-                self.BgLineBuffer[q] = PALLETE[(ptn[s] | attr) as usize];
+                let idx = ptn[s] | attr;
+                self.BgLineBuffer[q] = PALLETE[idx as usize];
                 q += 1;
                 s += 1;
             }
@@ -306,13 +326,14 @@ impl Pppu {
             if ((nameAddrLow & 0x001f) == 0x001f) {
                 nameAddrLow &= 0xffe0;
                 nameAddrHigh ^= 0x01;
-                let vval = &self.vram[nameAddrHigh ^ 0x01];
-                self.vram[nameAddrHigh] = vval.clone();
+                pre_name_addrh = nameAddrHigh;
             } else {
                 nameAddrLow += 1;
             }
         }
+        print!("");
     }
+
     fn BuildSpriteLine(&mut self) {
         //     let SpriteClipping = (self.regs[0x01] & 0x04) === 0x04 ? 0 : 8;
 
@@ -382,6 +403,15 @@ impl Pppu {
     pub fn get_nmi_status(&mut self) -> bool {
         self.nmi
     }
+    pub fn clear_img(&mut self) {
+        self.imgok = false;
+    } 
+    pub fn get_img(&mut self) -> bool {
+        self.imgok
+    }
+
+
+
 
     pub fn WriteScrollRegister(&mut self, value: u8) {
         self.regs[0x05] = value;
@@ -444,11 +474,8 @@ impl Pppu {
         let vramidx = tmpPPUAddress >> 10;
         self.vram[vramidx][tmpPPUAddress & 0x03ff] = value;
 
-
-
-        
         if (tmpPPUAddress < 0x3000) {
-            self.vram[vramidx+2][tmpPPUAddress & 0x03ff] = value;
+            self.vram[vramidx + 2][tmpPPUAddress & 0x03ff] = value;
 
             let val = if (self.regs[0x00] & 0x04) == 0x04 {
                 32

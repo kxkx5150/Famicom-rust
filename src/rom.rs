@@ -40,7 +40,7 @@ impl Rom {
             mapper_number: 0,
             srams: (0..0x2000).map(|x| 0).collect(),
             roms: vec![vec![0; 4]; 4],
-            prgrom_state: (0..8).map(|x| 0).collect(),
+            prgrom_state: (0..4).map(|x| 0).collect(),
             chrrom_state: (0..16).map(|x| 0).collect(),
             prgrom_pages: vec![vec![0; 1]; 1],
             chrrom_pages: vec![vec![0; 1]; 1],
