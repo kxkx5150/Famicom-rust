@@ -4,12 +4,12 @@ use crate::ppu;
 
 pub struct Mapper0 {
     pub rom: rom::Rom,
-    pub ppu: ppu::Pppu,
+    pub ppu: ppu::Ppu,
 }
 impl base::MapperBase for base::Base {}
 impl base::MapperBase for Mapper0 {}
 impl Mapper0 {
-    pub fn new(rom: rom::Rom, ppu: ppu::Pppu) -> Self {
+    pub fn new(rom: rom::Rom, ppu: ppu::Ppu) -> Self {
         Self {
             rom: rom,
             ppu: ppu,

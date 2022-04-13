@@ -24,7 +24,7 @@ pub struct Nes {
 impl Nes {
     pub fn new() -> Self {
         let rom = rom::Rom::new();
-        let ppu = ppu::Pppu::new();
+        let ppu = ppu::Ppu::new();
         let mapper = mapper0::Mapper0::new(rom, ppu);
         let mem = mem::Mem::new(mapper);
 
@@ -41,39 +41,45 @@ impl Nes {
     }
     pub fn start(
         &mut self,
-        test: bool,
+        cputest: bool,
         mut event_pump: EventPump,
         mut canvas: Canvas<Window>,
     ) {
         let mut count = 0;
-        let mut testflg = false;
-        if test {
+        let mut cputest = false;
+        if cputest {
             self.cpu.init_nestest();
             count = 8992;
-            testflg = true;
+            cputest = true;
         } else {
             self.cpu.start();
         }
-        self.main_loop(count, testflg, event_pump, canvas);
+        self.main_loop(count, cputest, event_pump, canvas);
     }
     pub fn main_loop(
         &mut self,
         mut count: usize,
-        test: bool,
+        cputest: bool,
         mut event_pump: EventPump,
         mut canvas: Canvas<Window>,
     ) {
         let mut i = 0;
+
         loop {
             i += 1;
             if count != 0 && count == i {
                 break;
             }
-            let cycles = self.cpu.run(test);
-            self.cpu.mem.mapper.ppu.run(cycles as usize);
+
+            self.cpu.run(cputest);
+            if self.cpu.mem.dma.get_status() {
+                self.cpu.mem.dma.clear();
+                self.cpu.cpuclock += 514;
+            }
+            self.cpu.mem.mapper.ppu.run(self.cpu.cpuclock as usize);
             self.cpu.clear_cpucycle();
-            
-            if !test {
+
+            if !cputest {
                 let imgopt = self.cpu.mem.mapper.ppu.get_img_status();
                 if imgopt.0 {
                     let buf = imgopt.1;

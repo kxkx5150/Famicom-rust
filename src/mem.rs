@@ -1,4 +1,5 @@
 use crate::{base::MapperBase, mapper0};
+use crate::dma::Dma;
 
 const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF;
@@ -8,12 +9,14 @@ const PPU_REGISTERS_MIRRORS_END: u16 = 0x3FFF;
 pub struct Mem {
     pub ram: Vec<u8>,
     pub mapper: mapper0::Mapper0,
+    pub dma: Dma,
 }
 impl Mem {
     pub fn new(mapper: mapper0::Mapper0) -> Self {
         Self {
             ram: (0..0x800).map(|x| 0).collect(),
             mapper: mapper,
+            dma: Dma::new(),
         }
     }
     pub fn init(&mut self) {
@@ -183,11 +186,7 @@ impl Mem {
                 0x4012 => {}
                 0x4013 => {}
                 0x4014 => {
-                    // let mut buffer: [u8; 256] = [0; 256];
-                    // let hi: u16 = (data as u16) << 8;
-                    // for i in 0..256u16 {
-                    //     buffer[i as usize] = self.get(hi + i);
-                    // }
+                    self.dma.run(data, &self.ram, &mut self.mapper.ppu);
                 }
                 0x4015 => {}
                 0x4016 => {}

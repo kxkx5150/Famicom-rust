@@ -26,8 +26,8 @@ pub struct Cpu {
     carry: bool,
 
     toirq: u8,
-    cpuclock: u64,
-    cycles: u64,
+    pub cpuclock: u64,
+    cycles: usize,
     total: u64,
 
     pub mem: mem::Mem,
@@ -89,11 +89,8 @@ impl Cpu {
         self.cpuclock += 7;
         self.exe_instruction(opc.op.as_str(), 0);
     }
-    pub fn run(&mut self, test: bool) -> u64 {
-        // if self.steps == 0 {
-        //     self.cpuclock = 0;
-        // }
-
+    pub fn run(&mut self, test: bool){
+        
         let nmi = self.mem.mapper.ppu.get_nmi_status();
         if (nmi) {
             self.exec_nmi();
@@ -123,7 +120,6 @@ impl Cpu {
         let cpucycle = self.cpuclock;
         self.totalcycle += cpucycle;
         self.steps += 1;
-        cpucycle
     }
     pub fn clear_cpucycle(&mut self){
         self.cpuclock = 0;
