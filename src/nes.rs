@@ -4,6 +4,7 @@ use crate::mapper0;
 use crate::mem;
 use crate::ppu;
 use crate::rom;
+use crate::irq;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -33,8 +34,9 @@ pub struct Nes {
 impl Nes {
     pub fn new() -> Self {
         let rom = rom::Rom::new();
+        let irq = irq::Irq::new();
         let ppu = ppu::Ppu::new();
-        let mapper = mapper0::Mapper0::new(rom, ppu);
+        let mapper = mapper0::Mapper0::new(rom, ppu, irq);
         let mem = mem::Mem::new(mapper);
 
         Self {

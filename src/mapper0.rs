@@ -1,16 +1,22 @@
 use crate::base;
 use crate::ppu;
 use crate::rom;
+use crate::irq;
 
 pub struct Mapper0 {
     pub rom: rom::Rom,
     pub ppu: ppu::Ppu,
+    pub irq: irq::Irq,
 }
 impl base::MapperBase for base::Base {}
 impl base::MapperBase for Mapper0 {}
 impl Mapper0 {
-    pub fn new(rom: rom::Rom, ppu: ppu::Ppu) -> Self {
-        Self { rom: rom, ppu: ppu }
+    pub fn new(rom: rom::Rom, ppu: ppu::Ppu, irq: irq::Irq) -> Self {
+        Self { 
+            rom, 
+            ppu,
+            irq,
+        }
     }
 
     pub fn set_rom(&mut self, mut buf: Vec<u8>) {
