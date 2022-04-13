@@ -1,5 +1,5 @@
-use crate::{base::MapperBase, mapper0};
 use crate::dma::Dma;
+use crate::{base::MapperBase, mapper0};
 
 const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF;
@@ -143,15 +143,12 @@ impl Mem {
                 }
                 0x05 => {
                     self.mapper.ppu.write_scroll_reg(data);
-
                 }
                 0x06 => {
                     self.mapper.ppu.write_ppu_addr_reg(data);
-
                 }
                 0x07 => {
                     self.mapper.ppu.write_ppu_data_reg(data);
-
                 }
                 0x0008..=PPU_REGISTERS_MIRRORS_END => {
                     let mirror_down_addr = addr & 0b00100000_00000111;

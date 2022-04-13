@@ -77,25 +77,23 @@ impl Cpu {
         self.reset();
         self.pc = 0xc000;
     }
-    pub fn exec_nmi(&mut self){
-        self.mem.mapper.ppu.clear_nmi();        
+    pub fn exec_nmi(&mut self) {
+        self.mem.mapper.ppu.clear_nmi();
         let opc = Opcode {
-            int:256,
+            int: 256,
             hex: "100".to_string(),
             op: "NMI".to_string(),
             adm: "IMP".to_string(),
-            cycle:0,
+            cycle: 0,
         };
         self.cpuclock += 7;
         self.exe_instruction(opc.op.as_str(), 0);
     }
-    pub fn run(&mut self, test: bool){
-        
+    pub fn run(&mut self, test: bool) {
         let nmi = self.mem.mapper.ppu.get_nmi_status();
         if (nmi) {
             self.exec_nmi();
-        } else if (false) {//irq
-            
+        } else if (false) { //irq
         }
 
         let oldpc = self.pc;
@@ -112,7 +110,7 @@ impl Cpu {
         if test {
             self.show_test_state(pc, &op, &admstr);
         }
-        if false{
+        if false {
             self.show_state(pc, &op, &admstr);
         }
 
@@ -121,17 +119,17 @@ impl Cpu {
         self.totalcycle += cpucycle;
         self.steps += 1;
     }
-    pub fn clear_cpucycle(&mut self){
+    pub fn clear_cpucycle(&mut self) {
         self.cpuclock = 0;
     }
-    fn show_state(&mut self, pc: u16, op: &String, admstr: &String){
+    fn show_state(&mut self, pc: u16, op: &String, admstr: &String) {
         let p = self.getp(false);
         println!("");
         println!("pc         : {:#04X}", pc);
         println!("opcode     : {}", op);
         println!("adrmode    : {}", admstr);
         println!(
-                 "regs       : A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
+            "regs       : A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
             self.a, self.x, self.y, p, self.sp
         );
     }
@@ -841,10 +839,6 @@ impl Cpu {
         self.pc
     }
 
-
-
-
-
     fn pre_incsp(&mut self) -> u8 {
         self.sp += 1;
         self.sp
@@ -859,11 +853,6 @@ impl Cpu {
         self.sp -= 1;
         sp
     }
-
-
-
-
-
 
     fn setp(&mut self, value: u8) {
         self.negative = (value & 0x80) > 0;

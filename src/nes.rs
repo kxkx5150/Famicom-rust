@@ -9,11 +9,11 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::rect::Point;
 use sdl2::render::Canvas;
 use sdl2::render::Texture;
 use sdl2::video::Window;
 use sdl2::EventPump;
-use sdl2::rect::{Point};
 
 const WIDTH: u32 = 256;
 const HEIGHT: u32 = 224;
@@ -39,12 +39,7 @@ impl Nes {
         println!("load rom");
         self.cpu.mem.mapper.set_rom(buf);
     }
-    pub fn start(
-        &mut self,
-        cputest: bool,
-        mut event_pump: EventPump,
-        mut canvas: Canvas<Window>,
-    ) {
+    pub fn start(&mut self, cputest: bool, mut event_pump: EventPump, mut canvas: Canvas<Window>) {
         let mut count = 0;
         let mut cputest = false;
         if cputest {
@@ -110,4 +105,3 @@ impl Nes {
         }
     }
 }
-
