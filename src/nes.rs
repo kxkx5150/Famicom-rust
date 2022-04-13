@@ -70,7 +70,7 @@ impl Nes {
                 break;
             }
             let cycles = self.cpu.run(test);
-            self.cpu.mem.mapper.ppu.PpuRun(cycles as usize);
+            self.cpu.mem.mapper.ppu.run(cycles as usize);
             self.cpu.clear_cpucycle();
             
             if !test {

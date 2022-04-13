@@ -39,14 +39,14 @@ impl Mem {
                     0x0000 => {}
                     0x0001 => {}
                     0x0002 => {
-                        return self.mapper.ppu.ReadPPUStatus();
+                        return self.mapper.ppu.read_ppu_status_reg();
                     }
                     0x0003 => {}
                     0x0004 => {}
                     0x0005 => {}
                     0x0006 => {}
                     0x0007 => {
-                        return self.mapper.ppu.ReadPPUData();
+                        return self.mapper.ppu.read_ppu_data_reg();
                     }
                     0x0008..=PPU_REGISTERS_MIRRORS_END => {
                         let mirror_down_addr = addr & 0b00100000_00000111;
@@ -126,28 +126,28 @@ impl Mem {
             }
             0x2000 => match (addr & 0x07) {
                 0x00 => {
-                    self.mapper.ppu.WritePPUControlRegister0(data);
+                    self.mapper.ppu.write_ppu_ctrl0_reg(data);
                 }
                 0x01 => {
-                    self.mapper.ppu.WritePPUControlRegister1(data);
+                    self.mapper.ppu.write_ppu_ctrl1_reg(data);
                 }
                 0x02 => {}
                 0x03 => {
-                    self.mapper.ppu.WriteSpriteAddressRegister(data);
+                    self.mapper.ppu.write_sprite_addr_reg(data);
                 }
                 0x04 => {
-                    self.mapper.ppu.WriteSpriteData(data);
+                    self.mapper.ppu.write_sprite_data(data);
                 }
                 0x05 => {
-                    self.mapper.ppu.WriteScrollRegister(data);
+                    self.mapper.ppu.write_scroll_reg(data);
 
                 }
                 0x06 => {
-                    self.mapper.ppu.WritePPUAddressRegister(data);
+                    self.mapper.ppu.write_ppu_addr_reg(data);
 
                 }
                 0x07 => {
-                    self.mapper.ppu.WritePPUData(data);
+                    self.mapper.ppu.write_ppu_data_reg(data);
 
                 }
                 0x0008..=PPU_REGISTERS_MIRRORS_END => {
