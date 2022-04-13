@@ -214,9 +214,6 @@ impl Pppu {
                     let idx = self.Palette[self.BgLineBuffer[p] as usize];
                     let tmpPal = PALLETE_TABLE[idx as usize];
                     self.setImageData(tmpPal);
-                    if 80 < p {
-                        print!("");
-                    }
                 }
             } else {
                 for p in (0..264) {
@@ -238,7 +235,6 @@ impl Pppu {
             } else {
                 self.PPUAddress += 0x1000;
             }
-            print!("");
         } else if (8 <= self.PpuY && self.PpuY < 232) {
             // let mut tmpDist = (self.PpuY - 8) << 10;
             let tmpPal = PALLETE_TABLE[self.Palette[0x10] as usize];
@@ -273,12 +269,9 @@ impl Pppu {
         let mut s = self.HScrollTmp;
         let mut q = 0;
 
-        if self.PpuY == 9 {
-            print!("");
-        }
         for p in 0..33 {
             let tmpVRAMHigh = &self.vram[pre_name_addrh];
-            let mut ptnDist = ((self.vram[pre_name_addrh][nameAddrLow] as usize) << 4) | tableAddr;
+            let mut ptnDist = ((tmpVRAMHigh[nameAddrLow] as usize) << 4) | tableAddr;
             let tmpSrcV = &self.vram[(ptnDist >> 10) as usize];
             ptnDist &= 0x03ff;
 
@@ -287,14 +280,14 @@ impl Pppu {
 
             let lval2 = (nameAddrLow & 0x0040) >> 4;
             let rval2 = nameAddrLow & 0x0002;
-            let attr = ((tmpVRAMHigh[lval | rval] << 2) >> (lval2 | rval2)) & 0x0c;
+            let attr = (((tmpVRAMHigh[lval | rval] as usize) << 2) >> (lval2 | rval2)) & 0x0c;
 
             let spbidx1 = tmpSrcV[ptnDist as usize];
             let spbidx2 = tmpSrcV[(ptnDist + 8) as usize];
             let ptn = &self.SPBitArray[spbidx1 as usize][spbidx2 as usize];
 
             while s < 8 {
-                let idx = ptn[s] | attr;
+                let idx = ptn[s] | attr as u8;
                 self.BgLineBuffer[q] = PALLETE[idx as usize];
                 q += 1;
                 s += 1;
@@ -309,7 +302,6 @@ impl Pppu {
                 nameAddrLow += 1;
             }
         }
-        print!("");
     }
     fn inVblank(&mut self) {
         self.ScrollRegisterFlag = false;
@@ -333,10 +325,6 @@ impl Pppu {
         self.imgdata[self.imgidx + 2] = plt.2;
         self.imgidx += 3;
     }
-
-
-
-
 
     fn BuildSpriteLine(&mut self) {
         //     let SpriteClipping = (self.regs[0x01] & 0x04) === 0x04 ? 0 : 8;
@@ -393,14 +381,6 @@ impl Pppu {
         //       else self.regs[0x02] &= 0xdf;
         //     }
     }
-    fn isBigSize(&mut self) -> usize {
-        let val = (if (self.regs[0x00] & 0x20) == 0x20 {
-            16
-        } else {
-            8
-        });
-        return 8;
-    }
     pub fn clear_nmi(&mut self) {
         self.nmi = false;
     }
@@ -413,6 +393,14 @@ impl Pppu {
     pub fn get_img(&mut self) -> bool {
         self.imgok
     }
+
+
+
+
+
+
+
+
 
     pub fn WriteScrollRegister(&mut self, value: u8) {
         self.regs[0x05] = value;
@@ -445,7 +433,6 @@ impl Pppu {
         }
         self.PPUAddressRegisterFlag = !self.PPUAddressRegisterFlag;
     }
-
     pub fn ReadPPUStatus(&mut self) -> u8 {
         let result = self.regs[0x02];
         self.regs[0x02] &= 0x1f;
@@ -454,6 +441,16 @@ impl Pppu {
         return result;
     }
 
+
+
+
+
+
+
+
+
+
+    
     pub fn ReadPPUData(&mut self) -> u8 {
         let tmp = self.PPUReadBuffer;
         let addr = self.PPUAddress & 0x3fff;
@@ -499,8 +496,7 @@ impl Pppu {
         let palNo = tmpPPUAddress & 0x001f;
         if (palNo == 0x00 || palNo == 0x10) {
             self.Palette[0x10] = (value & 0x3f);
-            let plt = self.Palette[0x10];
-            self.Palette[0x00] = plt;
+            self.Palette[0x00] = self.Palette[0x10];
         } else {
             self.Palette[palNo] = value & 0x3f;
         }
@@ -525,6 +521,14 @@ impl Pppu {
     }
     fn is_sprite_enable(&mut self) -> bool {
         return (self.regs[0x01] & 0x10) == 0x10;
+    }
+    fn isBigSize(&mut self) -> usize {
+        let val = (if (self.regs[0x00] & 0x20) == 0x20 {
+            16
+        } else {
+            8
+        });
+        return val;
     }
 }
 
