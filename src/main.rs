@@ -34,6 +34,7 @@ fn main() {
 
     let mut nes = nes::Nes::new();
     nes.init();
+
     let cputest = false;
     let mut filename = "";
     if cputest {
@@ -43,10 +44,21 @@ fn main() {
     }
 
     match fs::read(filename) {
-        Result::Ok(buf) => nes.set_rom(buf),
+        Result::Ok(buf) => {
+            nes.set_rom(buf);
+        }
         Result::Err(err) => {
             eprintln!("Cannot open .nes file: {}", filename);
-            panic!("{}", err);
+            filename = "j.nes";
+            match fs::read(filename) {
+                Result::Ok(buf) => {
+                    nes.set_rom(buf);
+                }
+                Result::Err(err) => {
+                    eprintln!("Cannot open .nes file: {}", filename);
+                    panic!("{}", err);
+                }
+            }
         }
     }
     nes.start(cputest, event_pump, canvas);

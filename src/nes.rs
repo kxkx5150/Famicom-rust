@@ -59,6 +59,10 @@ impl Nes {
         mut canvas: Canvas<Window>,
     ) {
         let mut i = 0;
+        let creator = canvas.texture_creator();
+        let mut texture = creator
+            .create_texture_target(PixelFormatEnum::RGB24, WIDTH, HEIGHT)
+            .unwrap();
 
         loop {
             i += 1;
@@ -74,24 +78,14 @@ impl Nes {
             self.cpu.mem.mapper.ppu.run(self.cpu.cpuclock as usize);
             self.cpu.clear_cpucycle();
 
-            if !cputest {
-                let imgopt = self.cpu.mem.mapper.ppu.get_img_status();
-                if imgopt.0 {
-                    let buf = imgopt.1;
-                    for i in 0..HEIGHT {
-                        for j in 0..WIDTH {
-                            let base = ((i * WIDTH + j) * 3) as usize;
-                            let r = buf[base + 0];
-                            let g = buf[base + 1];
-                            let b = buf[base + 2];
-                            canvas.set_draw_color(Color::RGB(r, g, b));
-                            let _ = canvas.draw_point(Point::new(j as i32, i as i32));
-                        }
-                    }
-                    self.cpu.mem.mapper.ppu.clear_img();
-                    canvas.present();
-                }
+            let imgopt = self.cpu.mem.mapper.ppu.get_img_status();
+            if imgopt.0 {
+                texture.update(None, imgopt.1, 256 * 3).unwrap();
+                canvas.copy(&texture, None, None).unwrap();
+                canvas.present();
+                self.cpu.mem.mapper.ppu.clear_img();
             }
+
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit { .. }

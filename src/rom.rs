@@ -65,7 +65,8 @@ impl Rom {
             let romlen = self.rom.len();
 
             for i in 0..(self.chr_rom_page_count * 8) {
-                let chrrom_offset = hlen + prg_psize * self.prg_rom_page_count + (chr_psize / 8) * i;
+                let chrrom_offset =
+                    hlen + prg_psize * self.prg_rom_page_count + (chr_psize / 8) * i;
                 let mut h = chrrom_offset + chr_psize / 2;
                 if h > romlen {
                     h = romlen;
