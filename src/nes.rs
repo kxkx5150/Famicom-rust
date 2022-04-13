@@ -74,10 +74,9 @@ impl Nes {
             self.cpu.clear_cpucycle();
             
             if !test {
-                let img = self.cpu.mem.mapper.ppu.get_img();
-                if img {
-                    self.cpu.mem.mapper.ppu.clear_img();
-                    let buf = &self.cpu.mem.mapper.ppu.imgdata;
+                let imgopt = self.cpu.mem.mapper.ppu.get_img_status();
+                if imgopt.0 {
+                    let buf = imgopt.1;
                     for i in 0..HEIGHT {
                         for j in 0..WIDTH {
                             let base = ((i * WIDTH + j) * 3) as usize;
@@ -88,6 +87,7 @@ impl Nes {
                             let _ = canvas.draw_point(Point::new(j as i32, i as i32));
                         }
                     }
+                    self.cpu.mem.mapper.ppu.clear_img();
                     canvas.present();
                 }
             }

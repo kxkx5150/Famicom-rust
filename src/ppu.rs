@@ -7,7 +7,7 @@ pub struct Pppu {
     regs: Vec<u8>,
     nmi: bool,
     pub imgdata: Vec<u8>,
-    pub imgok: bool,
+    imgok: bool,
     imgidx: usize,
     rcount: usize,
 
@@ -183,12 +183,8 @@ impl Pppu {
 
         while (341 <= self.ppux) {
             self.ppux -= 341;
-            if self.line == 0 {
-                self.imgidx = 0;
-                self.imgok = false;
-            }
-
             self.line += 1;
+            
             self.sprite_zero = false;
 
             if (self.line == 240) {
@@ -502,10 +498,15 @@ impl Pppu {
         self.nmi
     }
     pub fn clear_img(&mut self) {
+        self.imgidx = 0;
         self.imgok = false;
     }
-    pub fn get_img(&mut self) -> bool {
-        self.imgok
+    pub fn get_img_status(&mut self) -> (bool, &Vec<u8>) {
+        if self.imgok{
+            return (true, &self.imgdata);
+        }else {
+            return (false, &self.imgdata);
+        }
     }
 }
 
