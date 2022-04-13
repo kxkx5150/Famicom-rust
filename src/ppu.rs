@@ -22,7 +22,10 @@ pub struct Pppu {
     screen_mirroring: Mirroring,
     vram: Vec<Vec<u8>>,
     vrams: Vec<Vec<u8>>,
+
     bg_line_buffer: Vec<u8>,
+    SpriteLineBuffer: Vec<u16>,
+
     palette: Vec<u8>,
     sprite_ram: Vec<u8>,
     spbit_pattern: Vec<Vec<Vec<u8>>>,
@@ -50,10 +53,12 @@ impl Pppu {
 
             vram: vec![vec![0; 4096]; 16],
             vrams: vec![vec![0; 1024]; 16],
+
             bg_line_buffer: (0..264).map(|x| 0).collect(),
+            SpriteLineBuffer: (0..264).map(|x| 0).collect(),
+
             palette: (0..33).map(|x| 0x0f).collect(),
             sprite_ram: (0..0x100).map(|x| 0).collect(),
-
             spbit_pattern: vec![vec![vec![0; 8]; 256]; 256],
         }
     }
@@ -63,6 +68,7 @@ impl Pppu {
         self.palette = [0x0f; 33].to_vec();
         self.sprite_ram = [0; 0x100].to_vec();
         self.bg_line_buffer = [0; 264].to_vec();
+        self.SpriteLineBuffer = [0; 264].to_vec();
 
         self.screen_mirroring = rom.screen_mirroring.clone();
         match self.screen_mirroring {
@@ -115,6 +121,7 @@ impl Pppu {
         // self.vram = vec![vec![0; 4096]; 16];
         // self.vrams = vec![vec![0; 1024]; 16];
         // self.bg_line_buffer = (0..264).map(|x| 0).collect();
+        // self.SpriteLineBuffer = (0..264).map(|x| 0).collect();
         // self.palette = (0..33).map(|x| 0x0f).collect();
         // self.sprite_ram =  (0..0x100).map(|x| 0).collect();
     }
@@ -179,21 +186,35 @@ impl Pppu {
         }
     }
     pub fn run(&mut self, cpuclock: usize) {
+        let mut tmpx = self.ppux;
         self.ppux += cpuclock * 3;
 
         while (341 <= self.ppux) {
             self.ppux -= 341;
             self.line += 1;
-            
+            tmpx = 0;
             self.sprite_zero = false;
+
+            if (self.line == 262) {
+                self.post_render();
+            }
 
             if (self.line == 240) {
                 self.in_vblank();
                 continue;
             } else if (self.line < 240) {
                 self.render_frame();
-            } else if (self.line == 262) {
-                self.post_render();
+            }
+        }
+
+        if (self.sprite_zero && (self.regs[0x02] & 0x40) != 0x40) {
+            let i = if self.ppux > 255 { 255 } else { self.ppux };
+            while tmpx <= i {
+                if (self.SpriteLineBuffer[tmpx] == 0) {
+                    self.regs[0x02] |= 0x40;
+                    break;
+                }
+                tmpx += 1;
             }
         }
     }
@@ -203,7 +224,7 @@ impl Pppu {
 
             if (8 <= self.line && self.line < 232) {
                 self.build_bg();
-                // self.build_sprite_line();
+                self.build_sprite_line();
                 for p in (0..256) {
                     let idx = self.palette[self.bg_line_buffer[p] as usize];
                     let tmpPal = PALLETE_TABLE[idx as usize];
@@ -213,7 +234,7 @@ impl Pppu {
                 for p in (0..264) {
                     self.bg_line_buffer[p] = 0x10;
                 }
-                // self.build_sprite_line();
+                self.build_sprite_line();
             }
 
             if ((self.ppu_addr & 0x7000) == 0x7000) {
@@ -294,6 +315,96 @@ impl Pppu {
             }
         }
     }
+    fn build_sprite_line(&mut self) {
+        let SpriteClipping = if (self.regs[0x01] & 0x04) == 0x04 {
+            0
+        } else {
+            8
+        };
+
+        if ((self.regs[0x01] & 0x10) == 0x10) {
+            for p in 0..264 {
+                self.SpriteLineBuffer[p] = 256;
+            }
+
+            let spptableaddr = ((self.regs[0x00] & 0x08) as usize) << 9;
+            let mut count = 0;
+
+            for i in (0..=252).step_by(4) {
+                let isy = (self.sprite_ram[i] + 1) as usize;
+                let bzsize = self.is_bigsize();
+                if isy > self.line || (isy + bzsize <= self.line) {
+                    continue;
+                }
+
+                if (i == 0) {
+                    self.sprite_zero = true;
+                }
+
+                count += 1;
+                if (count == 9) {
+                    break;
+                }
+
+                let attr = self.sprite_ram[i + 2];
+                let attribute = ((attr & 0x03) << 2) | 0x10;
+                let bgsp = (attr & 0x20) == 0x00;
+
+                let mut x = (self.sprite_ram[i + 3]) as usize;
+                let mut ex = x + 8;
+                if ex > 256 {
+                    ex = 256;
+                }
+
+                let iy = if (attr & 0x80) == 0x80 {
+                    bzsize - 1 - (self.line - isy)
+                } else {
+                    self.line - isy
+                };
+
+                let tileNum = if bzsize == 8 {
+                    (self.sprite_ram[i + 1] << 4) as usize + spptableaddr
+                } else {
+                    (((self.sprite_ram[i + 1] & 0xfe) as usize) << 4)
+                        + (((self.sprite_ram[i + 1] & 0x01) as usize) << 12)
+                };
+
+                let tmpLow = tileNum & 0x03ff;
+
+                let mut is: isize = 7;
+                let mut ia: isize = -1;
+                if ((attr & 0x40) == 0x00) {
+                    is = 0;
+                    ia = 1;
+                }
+
+                let ptnidxl = (self.vram[(tileNum >> 10) as usize][tmpLow as usize]) as usize;
+                let ptnidxr = (self.vram[(tileNum >> 10) as usize][(tmpLow + 8) as usize]) as usize;
+                let ptn = &self.spbit_pattern[ptnidxl][ptnidxr];
+
+                while x < ex {
+                    let tmpPtn = ptn[is as usize];
+                    if (tmpPtn != 0x00 && (self.SpriteLineBuffer[x as usize] == 256)) {
+                        self.SpriteLineBuffer[x as usize] = i as u16;
+                        if (x >= SpriteClipping
+                            && (bgsp || self.bg_line_buffer[x as usize] == 0x10))
+                        {
+                            self.bg_line_buffer[x as usize] = tmpPtn | attribute;
+                        }
+                    }
+                    x += 1;
+                    is += ia;
+                }
+            }
+
+            if (8 <= count) {
+                self.regs[0x02] |= 0x20;
+            } else {
+                self.regs[0x02] &= 0xdf;
+            }
+        }
+    }
+
     fn in_vblank(&mut self) {
         self.scroll_reg_flg = false;
         self.regs[0x02] &= 0x1f;
@@ -301,7 +412,6 @@ impl Pppu {
         if ((self.regs[0x00] & 0x80) == 0x80) {
             self.nmi = true;
         }
-        self.imgok = true;
     }
     fn post_render(&mut self) {
         self.line = 0;
@@ -309,68 +419,13 @@ impl Pppu {
             self.ppu_addr = self.ppu_addr_buffer;
         }
         self.regs[0x02] &= 0x7f;
+        self.imgok = true;
     }
     fn set_img_data(&mut self, plt: (u8, u8, u8)) {
         self.imgdata[self.imgidx] = plt.0;
         self.imgdata[self.imgidx + 1] = plt.1;
         self.imgdata[self.imgidx + 2] = plt.2;
         self.imgidx += 3;
-    }
-
-    fn build_sprite_line(&mut self) {
-        //     let SpriteClipping = (self.regs[0x01] & 0x04) === 0x04 ? 0 : 8;
-
-        //     if ((self.regs[0x01] & 0x10) === 0x10) {
-        //       let tmpSpLine = self.SpriteLineBuffer;tmpSpLine.fill(256)
-        //       let tmpSpRAM = self.sprite_ram;
-        //       let spptableaddr = (self.regs[0x00] & 0x08) << 9;
-        //       let lineY = self.line;
-        //       let count = 0;
-
-        //       for (let i = 0; i <= 252; i += 4) {
-        //         let isy = tmpSpRAM[i] + 1;
-        //         if (isy > lineY || isy + self.is_bigsize <= lineY) continue;
-        //         if (i === 0) self.sprite_zero = true;
-        //         if (++count === 9) break;
-
-        //         let attr = tmpSpRAM[i + 2];
-        //         let attribute = ((attr & 0x03) << 2) | 0x10;
-        //         let bgsp = (attr & 0x20) === 0x00;
-
-        //         let x = tmpSpRAM[i + 3];
-        //         let ex = x + 8;
-        //         if (ex > 256) ex = 256;
-        //         let iy = (attr & 0x80) === 0x80 ? self.is_bigsize - 1 - (lineY - isy) : lineY - isy;
-        //         let tileNum =
-        //           ((iy & 0x08) << 1) +
-        //           (iy & 0x07) +
-        //           (self.is_bigsize === 8
-        //             ? (tmpSpRAM[i + 1] << 4) + spptableaddr
-        //             : ((tmpSpRAM[i + 1] & 0xfe) << 4) + ((tmpSpRAM[i + 1] & 0x01) << 12));
-        //         let tmpHigh = self.vram[tileNum >> 10];
-        //         let tmpLow = tileNum & 0x03ff;
-        //         if ((attr & 0x40) === 0x00) {
-        //           let is = 0;
-        //           let ia = 1;
-        //         } else {
-        //           let is = 7;
-        //           let ia = -1;
-        //         }
-
-        //         let ptn = self.spbit_pattern[tmpHigh[tmpLow]][tmpHigh[tmpLow + 8]];
-        //         for (; x < ex; x++, is += ia) {
-        //           let tmpPtn = ptn[is];
-        //           if (tmpPtn !== 0x00 && tmpSpLine[x] === 256) {
-        //             tmpSpLine[x] = i;
-        //             if (x >= SpriteClipping && (bgsp || self.bg_line_buffer[x] === 0x10))
-        //             self.bg_line_buffer[x] = tmpPtn | attribute;
-        //           }
-        //         }
-        //       }
-
-        //       if (count >= 8) self.regs[0x02] |= 0x20;
-        //       else self.regs[0x02] &= 0xdf;
-        //     }
     }
 
     pub fn write_scroll_reg(&mut self, value: u8) {
@@ -380,16 +435,14 @@ impl Pppu {
                 | ((value as usize & 0xf8) << 2)
                 | ((value as usize & 0x07) << 12);
         } else {
-            self.ppu_addr_buffer =
-                (self.ppu_addr_buffer & 0xffe0) | ((value as usize & 0xf8) >> 3);
+            self.ppu_addr_buffer = (self.ppu_addr_buffer & 0xffe0) | ((value as usize & 0xf8) >> 3);
             self.h_scroll_val = value as usize & 7;
         }
         self.scroll_reg_flg = !self.scroll_reg_flg;
     }
     pub fn write_ppu_ctrl0_reg(&mut self, value: u8) {
         self.regs[0x00] = value;
-        self.ppu_addr_buffer =
-            (self.ppu_addr_buffer & 0xf3ff) | (((value & 0x03) as usize) << 10);
+        self.ppu_addr_buffer = (self.ppu_addr_buffer & 0xf3ff) | (((value & 0x03) as usize) << 10);
     }
     pub fn write_ppu_ctrl1_reg(&mut self, value: u8) {
         self.regs[0x01] = value;
@@ -400,8 +453,7 @@ impl Pppu {
             self.ppu_addr_buffer = (self.ppu_addr_buffer & 0xff00) | value as usize;
             self.ppu_addr = self.ppu_addr_buffer;
         } else {
-            self.ppu_addr_buffer =
-                (self.ppu_addr_buffer & 0x00ff) | ((value as usize & 0x3f) << 8);
+            self.ppu_addr_buffer = (self.ppu_addr_buffer & 0x00ff) | ((value as usize & 0x3f) << 8);
         }
         self.ppu_addr_reg_flg = !self.ppu_addr_reg_flg;
     }
@@ -475,7 +527,7 @@ impl Pppu {
     pub fn write_sprite_addr_reg(&mut self, value: u8) {
         self.regs[0x03] = value;
     }
-    
+
     fn is_screen_enable(&mut self) -> bool {
         return (self.regs[0x01] & 0x08) == 0x08;
     }
@@ -488,7 +540,7 @@ impl Pppu {
         } else {
             8
         });
-        return val;
+        val
     }
 
     pub fn clear_nmi(&mut self) {
@@ -502,9 +554,9 @@ impl Pppu {
         self.imgok = false;
     }
     pub fn get_img_status(&mut self) -> (bool, &Vec<u8>) {
-        if self.imgok{
+        if self.imgok {
             return (true, &self.imgdata);
-        }else {
+        } else {
             return (false, &self.imgdata);
         }
     }
