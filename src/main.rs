@@ -10,6 +10,7 @@ pub mod nes;
 pub mod nestest;
 pub mod ppu;
 pub mod rom;
+// pub mod keypad;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;

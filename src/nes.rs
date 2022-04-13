@@ -18,6 +18,15 @@ use sdl2::EventPump;
 const WIDTH: u32 = 256;
 const HEIGHT: u32 = 224;
 
+const PAD_A: u8 = 0x01;
+const PAD_B: u8 = 0x02;
+const PAD_SELECT: u8 = 0x04;
+const PAD_START: u8 = 0x08;
+const PAD_U: u8 = 0x10;
+const PAD_D: u8 = 0x20;
+const PAD_L: u8 = 0x40;
+const PAD_R: u8 = 0x80;
+
 pub struct Nes {
     cpu: cpu::Cpu,
 }
@@ -51,6 +60,7 @@ impl Nes {
         }
         self.main_loop(count, cputest, event_pump, canvas);
     }
+
     pub fn main_loop(
         &mut self,
         mut count: usize,
@@ -59,6 +69,7 @@ impl Nes {
         mut canvas: Canvas<Window>,
     ) {
         let mut i = 0;
+        let mut pad = 0;
         let creator = canvas.texture_creator();
         let mut texture = creator
             .create_texture_target(PixelFormatEnum::RGB24, WIDTH, HEIGHT)
@@ -93,9 +104,33 @@ impl Nes {
                         keycode: Some(Keycode::Escape),
                         ..
                     } => std::process::exit(0),
+                    Event::KeyDown {
+                        keycode: Some(key), ..
+                    } => {
+                        pad |= keycode_to_pad(key);
+                    }
+                    Event::KeyUp {
+                        keycode: Some(key), ..
+                    } => {
+                        pad &= !keycode_to_pad(key);
+                    }
+
                     _ => { /* do nothing */ }
                 }
             }
         }
+    }
+}
+pub fn keycode_to_pad(key: Keycode) -> u8 {
+    match key {
+        Keycode::X => PAD_A,
+        Keycode::Z => PAD_B,
+        Keycode::A => PAD_SELECT,
+        Keycode::S => PAD_START,
+        Keycode::Up => PAD_U,
+        Keycode::Down => PAD_D,
+        Keycode::Left => PAD_L,
+        Keycode::Right => PAD_R,
+        _ => 0,
     }
 }
