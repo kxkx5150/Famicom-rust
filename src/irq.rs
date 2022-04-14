@@ -12,9 +12,9 @@ impl Irq {
             irq: false,
         }
     }
-    pub fn init(&mut self){
+    pub fn init(&mut self) {
         self.clear();
-    }   
+    }
     pub fn set_nmi(&mut self, flg: bool) {
         self.nmi = flg;
     }
@@ -42,7 +42,7 @@ impl Irq {
     pub fn clear_nmi(&mut self) {
         self.nmi = false;
     }
-    pub fn clear(&mut self){
+    pub fn clear(&mut self) {
         self.nmi = false;
         self.irq = false;
     }

@@ -84,7 +84,7 @@ impl Nes {
             .create_texture_target(PixelFormatEnum::RGB24, WIDTH, HEIGHT)
             .unwrap();
 
-        while  count == 0 || count != i {
+        while count == 0 || count != i {
             i += 1;
 
             if (self.cpu.mem.mapper.io.get_ctrllatched()) {

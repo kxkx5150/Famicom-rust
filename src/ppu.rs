@@ -1,5 +1,5 @@
-use crate::rom;
 use crate::irq;
+use crate::rom;
 use rom::Mirroring;
 
 pub struct Ppu {
@@ -185,7 +185,7 @@ impl Ppu {
             self.set_chr_rom_data1k(i, num + i, rom);
         }
     }
-    pub fn run(&mut self, cpuclock: usize,  irq: &mut irq::Irq) {
+    pub fn run(&mut self, cpuclock: usize, irq: &mut irq::Irq) {
         let mut tmpx = self.ppux;
         self.ppux += cpuclock * 3;
 

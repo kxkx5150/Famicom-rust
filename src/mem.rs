@@ -87,9 +87,7 @@ impl Mem {
                 0x4012 => {}
                 0x4013 => {}
                 0x4014 => {}
-                0x4015 => {
-
-                }
+                0x4015 => {}
                 0x4016 => {
                     let ret = self.mapper.io.get_latched_ctrl_state(1) & 1;
                     self.mapper.io.set_latched_ctrl_state(1);
@@ -199,10 +197,10 @@ impl Mem {
                 0x4016 => {
                     if ((data & 0x01) > 0) {
                         self.mapper.io.set_ctrllatched(true)
-                      } else {
+                    } else {
                         self.mapper.io.set_ctrllatched(false)
-                      }
-                      return;
+                    }
+                    return;
                 }
                 0x4017 => {}
                 0x4018 => {}
