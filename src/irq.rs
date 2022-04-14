@@ -2,39 +2,48 @@ use crate::cpu;
 
 #[derive(Debug)]
 pub struct Irq {
-    nmiWanted: bool,
-    irqWanted: bool,
+    nmi: bool,
+    irq: bool,
 }
 impl Irq {
     pub fn new() -> Self {
         Self {
-            nmiWanted: false,
-            irqWanted: false,
+            nmi: false,
+            irq: false,
         }
     }
-    pub fn set_nmiWanted(&mut self, flg: bool) {
-        self.nmiWanted = flg;
+    pub fn init(&mut self){
+        self.clear();
+    }   
+    pub fn set_nmi(&mut self, flg: bool) {
+        self.nmi = flg;
     }
-    pub fn get_nmiWanted(&mut self) -> bool {
-        return self.nmiWanted;
+    pub fn get_nmi(&mut self) -> bool {
+        return self.nmi;
     }
-    pub fn set_irqWanted(&mut self, flg: bool) {
-        self.irqWanted = flg;
+    pub fn set_irq(&mut self, flg: bool) {
+        self.irq = flg;
     }
-    pub fn get_irqWanted(&mut self) -> bool {
-        return self.irqWanted;
+    pub fn get_irq(&mut self) -> bool {
+        return self.irq;
     }
-    pub fn checkCpuIrqWanted(&mut self) {
-        // if (self.nmiWanted){
-        //   return "nmi";
-        // }else if(!self.nes.cpu.interrupt && (self.irqWanted || self.nes.cpu.toIRQ !== 0x00)) {
-        //   return "irq";
-        // } else {
-        //   return false;
-        // }
+    pub fn check_interrupt(&mut self, cpu: &cpu::Cpu) -> String {
+        if (self.nmi) {
+            return "nmi".to_string();
+        } else if cpu.interrupt && self.irq {
+            return "irq".to_string();
+        } else {
+            return "".to_string();
+        }
     }
-    pub fn reset(&mut self) {
-        self.nmiWanted = false;
-        self.irqWanted = false;
+    pub fn clear_irq(&mut self) {
+        self.irq = false;
+    }
+    pub fn clear_nmi(&mut self) {
+        self.nmi = false;
+    }
+    pub fn clear(&mut self){
+        self.nmi = false;
+        self.irq = false;
     }
 }

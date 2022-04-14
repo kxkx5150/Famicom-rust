@@ -1,11 +1,11 @@
 use crate::rom;
+use crate::irq;
 use rom::Mirroring;
 
 pub struct Ppu {
     ppux: usize,
     line: usize,
     regs: Vec<u8>,
-    nmi: bool,
     pub imgdata: Vec<u8>,
     imgok: bool,
     imgidx: usize,
@@ -36,7 +36,6 @@ impl Ppu {
             ppux: 341,
             line: 0,
             regs: (0..8).map(|x| 0).collect(),
-            nmi: false,
             imgdata: vec![0; 256 * 240 * 3],
             imgok: false,
             imgidx: 0,
@@ -62,6 +61,9 @@ impl Ppu {
             spbit_pattern: vec![vec![vec![0; 8]; 256]; 256],
         }
     }
+    pub fn init(&mut self) {
+        self.reset();
+    }
     pub fn start(&mut self, rom: &mut rom::Rom) {
         println!("ppu start");
         self.crate_spbit_array();
@@ -86,7 +88,6 @@ impl Ppu {
         self.ppux = 341;
         self.line = 0;
         self.sprite_zero = false;
-        self.nmi = false;
         self.imgok = false;
     }
     pub fn reset(&mut self) {
@@ -184,7 +185,7 @@ impl Ppu {
             self.set_chr_rom_data1k(i, num + i, rom);
         }
     }
-    pub fn run(&mut self, cpuclock: usize) {
+    pub fn run(&mut self, cpuclock: usize,  irq: &mut irq::Irq) {
         let mut tmpx = self.ppux;
         self.ppux += cpuclock * 3;
 
@@ -197,7 +198,7 @@ impl Ppu {
             if self.line < 240 {
                 self.render_frame();
             } else if self.line == 240 {
-                self.in_vblank();
+                self.in_vblank(irq);
                 continue;
             } else if self.line == 262 {
                 self.post_render();
@@ -401,12 +402,12 @@ impl Ppu {
         }
     }
 
-    fn in_vblank(&mut self) {
+    fn in_vblank(&mut self, irq: &mut irq::Irq) {
         self.scroll_reg_flg = false;
         self.regs[0x02] &= 0x1f;
         self.regs[0x02] |= 0x80;
         if ((self.regs[0x00] & 0x80) == 0x80) {
-            self.nmi = true;
+            irq.set_nmi(true);
         }
     }
     fn post_render(&mut self) {
@@ -538,12 +539,6 @@ impl Ppu {
         });
     }
 
-    pub fn clear_nmi(&mut self) {
-        self.nmi = false;
-    }
-    pub fn get_nmi_status(&mut self) -> bool {
-        self.nmi
-    }
     pub fn clear_img(&mut self) {
         self.imgidx = 0;
         self.imgok = false;

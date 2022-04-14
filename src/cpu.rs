@@ -1,4 +1,5 @@
 #![allow(warnings, unused, dead_code)]
+use crate::irq;
 use crate::mem;
 use crate::nestest;
 use std::process;
@@ -21,7 +22,7 @@ pub struct Cpu {
     negative: bool,
     overflow: bool,
     decimal: bool,
-    interrupt: bool,
+    pub interrupt: bool,
     zero: bool,
     carry: bool,
 
@@ -35,6 +36,7 @@ pub struct Cpu {
     steps: u64,
     totalcycle: u64,
 }
+
 impl Cpu {
     pub fn new(mem: mem::Mem) -> Self {
         Self {
@@ -77,8 +79,7 @@ impl Cpu {
         self.reset();
         self.pc = 0xc000;
     }
-    pub fn exec_nmi(&mut self) {
-        self.mem.mapper.ppu.clear_nmi();
+    pub fn exec_nmi(&mut self, irq: &mut irq::Irq) {
         let opc = Opcode {
             int: 256,
             hex: "100".to_string(),
@@ -89,11 +90,25 @@ impl Cpu {
         self.cpuclock += 7;
         self.exe_instruction(opc.op.as_str(), 0);
     }
-    pub fn run(&mut self, test: bool) {
-        let nmi = self.mem.mapper.ppu.get_nmi_status();
-        if (nmi) {
-            self.exec_nmi();
-        } else if (false) { //irq
+    pub fn exec_irq(&mut self, irq: &mut irq::Irq) {
+        let opc = Opcode {
+            int: 257,
+            hex: "101".to_string(),
+            op: "IRQ".to_string(),
+            adm: "IMP".to_string(),
+            cycle: 0,
+        };
+        self.cpuclock += 7;
+        self.exe_instruction(opc.op.as_str(), 0);
+    }
+    pub fn run(&mut self, irq: &mut irq::Irq, test: bool) {
+        let interrupt = irq.check_interrupt(self);
+        if (interrupt == "nmi") {
+            irq.clear_nmi();
+            self.exec_nmi(irq);
+        } else if (interrupt == "irq") {
+            irq.clear_irq();
+            self.exec_irq(irq);
         }
 
         let oldpc = self.pc;

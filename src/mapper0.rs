@@ -1,21 +1,21 @@
-use crate::base;
+use crate::mapper;
 use crate::ppu;
 use crate::rom;
-use crate::irq;
+use crate::io;
 
 pub struct Mapper0 {
     pub rom: rom::Rom,
     pub ppu: ppu::Ppu,
-    pub irq: irq::Irq,
+    pub io: io::Io,
 }
-impl base::MapperBase for base::Base {}
-impl base::MapperBase for Mapper0 {}
+impl mapper::MapperBase for mapper::Base {}
+impl mapper::MapperBase for Mapper0 {}
 impl Mapper0 {
-    pub fn new(rom: rom::Rom, ppu: ppu::Ppu, irq: irq::Irq) -> Self {
+    pub fn new(rom: rom::Rom, ppu: ppu::Ppu, io: io::Io) -> Self {
         Self { 
             rom, 
             ppu,
-            irq,
+            io,
         }
     }
 
@@ -30,6 +30,8 @@ impl Mapper0 {
     pub fn init(&mut self) {
         println!("mapper init");
         // self.rom.init();
+        self.ppu.init();
+        self.io.init();
     }
     pub fn render(&mut self) {}
 }

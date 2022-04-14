@@ -1,5 +1,5 @@
 use crate::dma::Dma;
-use crate::{base::MapperBase, mapper0};
+use crate::{mapper::MapperBase, mapper0};
 
 const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF;
@@ -87,9 +87,19 @@ impl Mem {
                 0x4012 => {}
                 0x4013 => {}
                 0x4014 => {}
-                0x4015 => {}
-                0x4016 => {}
-                0x4017 => {}
+                0x4015 => {
+
+                }
+                0x4016 => {
+                    let ret = self.mapper.io.get_latched_ctrl_state(1) & 1;
+                    self.mapper.io.set_latched_ctrl_state(1);
+                    return ret | 0x40;
+                }
+                0x4017 => {
+                    let ret = self.mapper.io.get_latched_ctrl_state(2) & 1;
+                    self.mapper.io.set_latched_ctrl_state(2);
+                    return ret | 0x40;
+                }
                 0x4018 => {}
                 0x4019 => {}
                 0x401a => {}
@@ -186,7 +196,14 @@ impl Mem {
                     self.dma.run(data, &self.ram, &mut self.mapper.ppu);
                 }
                 0x4015 => {}
-                0x4016 => {}
+                0x4016 => {
+                    if ((data & 0x01) > 0) {
+                        self.mapper.io.set_ctrllatched(true)
+                      } else {
+                        self.mapper.io.set_ctrllatched(false)
+                      }
+                      return;
+                }
                 0x4017 => {}
                 0x4018 => {}
                 0x4019 => {}

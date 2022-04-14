@@ -1,7 +1,7 @@
 #![allow(warnings, unused, dead_code)]
 use std::env;
 use std::fs;
-pub mod base;
+pub mod mapper;
 pub mod cpu;
 pub mod dma;
 pub mod mapper0;
@@ -11,7 +11,7 @@ pub mod nestest;
 pub mod ppu;
 pub mod rom;
 pub mod irq;
-// pub mod keypad;
+pub mod io;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
