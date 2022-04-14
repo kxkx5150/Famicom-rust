@@ -1,4 +1,5 @@
 use crate::dma::Dma;
+use crate::ppu::Port;
 use crate::{mapper::MapperBase, mapper0};
 
 const RAM: u16 = 0x0000;

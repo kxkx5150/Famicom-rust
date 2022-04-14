@@ -30,6 +30,21 @@ pub struct Ppu {
     pub sprite_ram: Vec<u8>,
     spbit_pattern: Vec<Vec<Vec<u8>>>,
 }
+pub trait Port {
+    fn write_scroll_reg(&mut self, value: u8);
+
+    fn write_ppu_ctrl0_reg(&mut self, value: u8);
+    fn write_ppu_ctrl1_reg(&mut self, value: u8);
+
+    fn read_ppu_status_reg(&mut self) -> u8;
+    fn write_ppu_addr_reg(&mut self, value: u8);
+
+    fn read_ppu_data_reg(&mut self) -> u8;
+    fn write_ppu_data_reg(&mut self, value: u8);
+
+    fn write_sprite_data(&mut self, value: u8);
+    fn write_sprite_addr_reg(&mut self, value: u8);
+}
 impl Ppu {
     pub fn new() -> Self {
         Self {
@@ -424,8 +439,33 @@ impl Ppu {
         self.imgdata[self.imgidx + 2] = plt.2;
         self.imgidx += 3;
     }
-
-    pub fn write_scroll_reg(&mut self, value: u8) {
+    pub fn clear_img(&mut self) {
+        self.imgidx = 0;
+        self.imgok = false;
+    }
+    pub fn get_img_status(&mut self) -> (bool, &Vec<u8>) {
+        if self.imgok {
+            return (true, &self.imgdata);
+        } else {
+            return (false, &self.imgdata);
+        }
+    }
+    fn is_screen_enable(&mut self) -> bool {
+        return (self.regs[0x01] & 0x08) == 0x08;
+    }
+    fn is_sprite_enable(&mut self) -> bool {
+        return (self.regs[0x01] & 0x10) == 0x10;
+    }
+    fn is_bigsize(&mut self) -> usize {
+        let val = (if (self.regs[0x00] & 0x20) == 0x20 {
+            return 16;
+        } else {
+            return 8;
+        });
+    }
+}
+impl Port for Ppu {
+    fn write_scroll_reg(&mut self, value: u8) {
         self.regs[0x05] = value;
         if (self.scroll_reg_flg) {
             self.ppu_addr_buffer = (self.ppu_addr_buffer & 0x8c1f)
@@ -437,14 +477,21 @@ impl Ppu {
         }
         self.scroll_reg_flg = !self.scroll_reg_flg;
     }
-    pub fn write_ppu_ctrl0_reg(&mut self, value: u8) {
+    fn write_ppu_ctrl0_reg(&mut self, value: u8) {
         self.regs[0x00] = value;
         self.ppu_addr_buffer = (self.ppu_addr_buffer & 0xf3ff) | (((value & 0x03) as usize) << 10);
     }
-    pub fn write_ppu_ctrl1_reg(&mut self, value: u8) {
+    fn write_ppu_ctrl1_reg(&mut self, value: u8) {
         self.regs[0x01] = value;
     }
-    pub fn write_ppu_addr_reg(&mut self, value: u8) {
+    fn read_ppu_status_reg(&mut self) -> u8 {
+        let result = self.regs[0x02];
+        self.regs[0x02] &= 0x1f;
+        self.scroll_reg_flg = false;
+        self.ppu_addr_reg_flg = false;
+        return result;
+    }
+    fn write_ppu_addr_reg(&mut self, value: u8) {
         self.regs[0x06] = value;
         if (self.ppu_addr_reg_flg) {
             self.ppu_addr_buffer = (self.ppu_addr_buffer & 0xff00) | value as usize;
@@ -454,14 +501,7 @@ impl Ppu {
         }
         self.ppu_addr_reg_flg = !self.ppu_addr_reg_flg;
     }
-    pub fn read_ppu_status_reg(&mut self) -> u8 {
-        let result = self.regs[0x02];
-        self.regs[0x02] &= 0x1f;
-        self.scroll_reg_flg = false;
-        self.ppu_addr_reg_flg = false;
-        return result;
-    }
-    pub fn read_ppu_data_reg(&mut self) -> u8 {
+    fn read_ppu_data_reg(&mut self) -> u8 {
         let tmp = self.ppu_read_buffer;
         let addr = self.ppu_addr & 0x3fff;
         self.ppu_read_buffer = self.vram[(addr >> 10) as usize][addr & 0x03ff] as usize;
@@ -474,7 +514,7 @@ impl Ppu {
         self.ppu_addr = (self.ppu_addr + val) & 0xffff;
         return tmp as u8;
     }
-    pub fn write_ppu_data_reg(&mut self, value: u8) {
+    fn write_ppu_data_reg(&mut self, value: u8) {
         self.regs[0x07] = value;
         let tmpppu_addr = self.ppu_addr & 0x3fff;
         self.vram[tmpppu_addr >> 10][tmpppu_addr & 0x03ff] = value;
@@ -516,39 +556,13 @@ impl Ppu {
         };
         self.ppu_addr = (self.ppu_addr + val) & 0xffff;
     }
-    pub fn write_sprite_data(&mut self, value: u8) {
+    fn write_sprite_data(&mut self, value: u8) {
         let idx = self.regs[0x03];
         self.sprite_ram[idx as usize] = value;
         self.regs[0x03] = (self.regs[0x03] + 1) & 0xff;
     }
-    pub fn write_sprite_addr_reg(&mut self, value: u8) {
+    fn write_sprite_addr_reg(&mut self, value: u8) {
         self.regs[0x03] = value;
-    }
-
-    fn is_screen_enable(&mut self) -> bool {
-        return (self.regs[0x01] & 0x08) == 0x08;
-    }
-    fn is_sprite_enable(&mut self) -> bool {
-        return (self.regs[0x01] & 0x10) == 0x10;
-    }
-    fn is_bigsize(&mut self) -> usize {
-        let val = (if (self.regs[0x00] & 0x20) == 0x20 {
-            return 16;
-        } else {
-            return 8;
-        });
-    }
-
-    pub fn clear_img(&mut self) {
-        self.imgidx = 0;
-        self.imgok = false;
-    }
-    pub fn get_img_status(&mut self) -> (bool, &Vec<u8>) {
-        if self.imgok {
-            return (true, &self.imgdata);
-        } else {
-            return (false, &self.imgdata);
-        }
     }
 }
 
